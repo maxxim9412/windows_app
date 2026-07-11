@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/home_screen.dart';
+import 'screens/root_scaffold.dart';
 
 class BibleReflectionApp extends StatelessWidget {
   const BibleReflectionApp({super.key});
@@ -21,7 +21,7 @@ class BibleReflectionApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorScheme: scheme, useMaterial3: true),
       darkTheme: ThemeData(colorScheme: darkScheme, useMaterial3: true),
-      home: const HomeScreen(),
+      home: const RootScaffold(),
     );
   }
 }

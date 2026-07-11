@@ -45,4 +45,24 @@ class BibleRepository {
     final verses = await versesFor(passage);
     return verses.isNotEmpty;
   }
+
+  /// Все стихи главы (по порядку номеров). Пусто, если главы нет в базе.
+  Future<List<({int verse, String text})>> chapterVerses(
+      String bookCode, int chapter) async {
+    await _ensureLoaded();
+    final book = _books![bookCode] as Map<String, dynamic>?;
+    if (book == null) return const [];
+    final chapters = book['chapters'] as Map<String, dynamic>?;
+    final ch = chapters?['$chapter'] as Map<String, dynamic>?;
+    if (ch == null) return const [];
+
+    final result = <({int verse, String text})>[];
+    for (final entry in ch.entries) {
+      final v = int.tryParse(entry.key);
+      final text = entry.value;
+      if (v != null && text is String) result.add((verse: v, text: text));
+    }
+    result.sort((a, b) => a.verse.compareTo(b.verse));
+    return result;
+  }
 }

@@ -17,7 +17,7 @@ class AppDatabase {
     final path = p.join(dir, 'bible_reflection.db');
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE passages (
@@ -44,6 +44,8 @@ class AppDatabase {
           )
         ''');
         await db.execute('CREATE UNIQUE INDEX idx_notes_date ON notes(date)');
+
+        await _createReadingTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -60,7 +62,33 @@ class AppDatabase {
             // content отсутствует — ничего не делаем.
           }
         }
+        if (oldVersion < 3) {
+          await _createReadingTables(db);
+        }
       },
     );
+  }
+
+  Future<void> _createReadingTables(Database db) async {
+    // План ежедневного чтения: главы на день (может быть несколько строк на дату).
+    await db.execute('''
+      CREATE TABLE readings (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL,
+        book_code TEXT NOT NULL,
+        chapter_start INTEGER NOT NULL,
+        chapter_end INTEGER NOT NULL,
+        order_index INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_readings_date ON readings(date)');
+
+    // Отметки о прочтении (одна на день).
+    await db.execute('''
+      CREATE TABLE reading_done (
+        date TEXT PRIMARY KEY,
+        done INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
   }
 }

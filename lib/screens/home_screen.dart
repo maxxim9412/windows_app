@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Отрывок дня'),
+        title: const Text('QT (Тихое время)'),
         actions: [
           IconButton(
             tooltip: 'Мои заметки',
