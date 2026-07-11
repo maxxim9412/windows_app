@@ -1,0 +1,24 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# macOS
+.DS_Store
+
+# Платформенные папки (сгенерируются `flutter create .`)
+# Если решишь версионировать их — убери из игнора.
+/android/
+/ios/
+/macos/
+/linux/
+/windows/
+/web/

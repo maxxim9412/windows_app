@@ -1,0 +1,38 @@
+name: bible_reflection
+description: "Размышления над Библией — отрывок дня, личные заметки и напоминания."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Локальная база (заметки + расписание отрывков)
+  sqflite: ^2.3.3
+  path: ^1.9.0
+  path_provider: ^2.1.4
+
+  # Настройки (время напоминаний и т.п.)
+  shared_preferences: ^2.3.2
+
+  # Локальные напоминания
+  flutter_local_notifications: ^18.0.1
+  timezone: ^0.9.4
+  flutter_timezone: ^3.0.1
+
+  # Форматирование дат (русская локаль)
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/bible/

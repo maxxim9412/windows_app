@@ -1,0 +1,221 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+
+import '../data/bible_repository.dart';
+import '../data/notes_repository.dart';
+import '../data/passage_repository.dart';
+import '../models/passage.dart';
+import '../utils/date_helpers.dart';
+import 'admin_screen.dart';
+import 'notes_list_screen.dart';
+import 'settings_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final _noteController = TextEditingController();
+  final _today = dateOnly(DateTime.now());
+
+  Passage? _passage;
+  List<({int verse, String text})> _verses = const [];
+  bool _loading = true;
+  bool _saving = false;
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _noteController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final passage = await PassageRepository.instance.forDate(_today);
+    final verses = passage == null
+        ? const <({int verse, String text})>[]
+        : await BibleRepository.instance.versesFor(passage);
+    final note = await NotesRepository.instance.forDate(_today);
+
+    if (!mounted) return;
+    _noteController.text = note?.content ?? '';
+    setState(() {
+      _passage = passage;
+      _verses = verses;
+      _loading = false;
+    });
+  }
+
+  void _onNoteChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 600), () => _saveNote(value));
+  }
+
+  Future<void> _saveNote(String value) async {
+    setState(() => _saving = true);
+    await NotesRepository.instance.save(_today, value);
+    if (!mounted) return;
+    setState(() => _saving = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Отрывок дня'),
+        actions: [
+          IconButton(
+            tooltip: 'Мои заметки',
+            icon: const Icon(Icons.menu_book_outlined),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const NotesListScreen())),
+          ),
+          IconButton(
+            tooltip: 'Расписание отрывков',
+            icon: const Icon(Icons.edit_calendar_outlined),
+            onPressed: () async {
+              await Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const AdminScreen()));
+              _load();
+            },
+          ),
+          IconButton(
+            tooltip: 'Напоминания',
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text(
+                  humanDate(_today),
+                  style: theme.textTheme.titleMedium
+                      ?.copyWith(color: theme.colorScheme.primary),
+                ),
+                const SizedBox(height: 12),
+                _buildPassageCard(theme),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Text('Мои размышления',
+                        style: theme.textTheme.titleMedium),
+                    const Spacer(),
+                    if (_saving)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    else
+                      Icon(Icons.check_circle_outline,
+                          size: 18, color: theme.colorScheme.outline),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _noteController,
+                  onChanged: _onNoteChanged,
+                  maxLines: null,
+                  minLines: 6,
+                  decoration: const InputDecoration(
+                    hintText: 'Что этот отрывок говорит вам сегодня?',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('Сохраняется автоматически',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline)),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildPassageCard(ThemeData theme) {
+    final passage = _passage;
+    if (passage == null) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('На сегодня отрывок не назначен.'),
+              const SizedBox(height: 8),
+              Text(
+                'Добавьте его в «Расписании отрывков» (значок календаря вверху).',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.outline),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(passage.reference,
+                style: theme.textTheme.titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 12),
+            if (_verses.isEmpty)
+              Text(
+                'Текст этого отрывка отсутствует в подключённой базе перевода.\n'
+                'В образце есть лишь несколько отрывков — подключите полный '
+                'Синодальный перевод (см. README).',
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.error),
+              )
+            else
+              ..._verses.map(
+                (v) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: RichText(
+                    text: TextSpan(
+                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                      children: [
+                        TextSpan(
+                          text: '${v.verse} ',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(text: v.text),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
