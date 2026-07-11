@@ -11,6 +11,11 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
 
+  # Бэкенд (аккаунты, тройки, обмен заметками)
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.0
+  cloud_firestore: ^5.4.0
+
   # Локальная база (заметки + расписание отрывков)
   sqflite: ^2.3.3
   path: ^1.9.0
