@@ -64,7 +64,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
                               style: theme.textTheme.bodySmall?.copyWith(
                                   color: theme.colorScheme.primary)),
                         const SizedBox(height: 2),
-                        Text(note.content,
+                        Text(note.combined,
                             maxLines: 2, overflow: TextOverflow.ellipsis),
                       ],
                     ),

@@ -22,8 +22,6 @@ dependencies:
   # Локальные напоминания
   flutter_local_notifications: ^18.0.1
   timezone: ^0.9.4
-  # 1.x — getLocalTimezone() возвращает String (см. notification_service.dart).
-  flutter_timezone: ^1.0.8
 
   # Форматирование дат (русская локаль)
   intl: ^0.19.0

@@ -5,6 +5,7 @@ import '../data/passage_repository.dart';
 import '../models/passage.dart';
 import '../utils/bible_books.dart';
 import '../utils/date_helpers.dart';
+import 'admin_import_screen.dart';
 
 /// Экран администратора: назначение отрывков на дни.
 class AdminScreen extends StatefulWidget {
@@ -41,7 +42,22 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Расписание отрывков')),
+      appBar: AppBar(
+        title: const Text('Расписание отрывков'),
+        actions: [
+          IconButton(
+            tooltip: 'Импорт списком',
+            icon: const Icon(Icons.playlist_add),
+            onPressed: () async {
+              final changed = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(builder: (_) => const AdminImportScreen()),
+              );
+              if (changed == true && mounted) setState(_reload);
+            },
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(),
         icon: const Icon(Icons.add),
@@ -221,7 +237,7 @@ class _PassageEditorState extends State<_PassageEditor> {
             const SizedBox(height: 8),
             // Книга
             DropdownButtonFormField<String>(
-              value: _bookCode,
+              initialValue: _bookCode,
               isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Книга',

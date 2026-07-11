@@ -7,6 +7,7 @@ import '../data/notes_repository.dart';
 import '../data/passage_repository.dart';
 import '../models/passage.dart';
 import '../utils/date_helpers.dart';
+import '../utils/note_questions.dart';
 import 'admin_screen.dart';
 import 'notes_list_screen.dart';
 import 'settings_screen.dart';
@@ -19,7 +20,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _noteController = TextEditingController();
+  final List<TextEditingController> _controllers =
+      List.generate(kNoteFieldCount, (_) => TextEditingController());
   final _today = dateOnly(DateTime.now());
 
   Passage? _passage;
@@ -37,7 +39,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _noteController.dispose();
+    for (final c in _controllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -50,7 +54,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final note = await NotesRepository.instance.forDate(_today);
 
     if (!mounted) return;
-    _noteController.text = note?.content ?? '';
+    for (var i = 0; i < kNoteFieldCount; i++) {
+      _controllers[i].text = note?.answers[i] ?? '';
+    }
     setState(() {
       _passage = passage;
       _verses = verses;
@@ -58,14 +64,15 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _onNoteChanged(String value) {
+  void _onAnyChanged() {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 600), () => _saveNote(value));
+    _debounce = Timer(const Duration(milliseconds: 600), _saveNote);
   }
 
-  Future<void> _saveNote(String value) async {
+  Future<void> _saveNote() async {
     setState(() => _saving = true);
-    await NotesRepository.instance.save(_today, value);
+    final answers = _controllers.map((c) => c.text).toList();
+    await NotesRepository.instance.save(_today, answers);
     if (!mounted) return;
     setState(() => _saving = false);
   }
@@ -130,22 +137,71 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-                TextField(
-                  controller: _noteController,
-                  onChanged: _onNoteChanged,
-                  maxLines: null,
-                  minLines: 6,
-                  decoration: const InputDecoration(
-                    hintText: 'Что этот отрывок говорит вам сегодня?',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
+                ...List.generate(kNoteFieldCount, _buildQuestionTile),
                 const SizedBox(height: 8),
                 Text('Сохраняется автоматически',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.outline)),
+                const SizedBox(height: 32),
               ],
             ),
+    );
+  }
+
+  Widget _buildQuestionTile(int i) {
+    final theme = Theme.of(context);
+    final controller = _controllers[i];
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 8),
+      color: theme.colorScheme.surfaceContainerHighest,
+      child: ExpansionTile(
+        initiallyExpanded: i == 0,
+        shape: const Border(),
+        collapsedShape: const Border(),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        leading: CircleAvatar(
+          radius: 14,
+          backgroundColor: theme.colorScheme.primary,
+          child: Text('${i + 1}',
+              style: TextStyle(
+                  color: theme.colorScheme.onPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold)),
+        ),
+        title: Text(kNoteQuestions[i],
+            style: theme.textTheme.titleSmall
+                ?.copyWith(fontWeight: FontWeight.w600)),
+        subtitle: AnimatedBuilder(
+          animation: controller,
+          builder: (_, __) {
+            final text = controller.text.trim();
+            if (text.isEmpty) return const SizedBox.shrink();
+            return Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(text,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline)),
+            );
+          },
+        ),
+        children: [
+          TextField(
+            controller: controller,
+            onChanged: (_) => _onAnyChanged(),
+            maxLines: null,
+            minLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Запишите здесь…',
+              border: OutlineInputBorder(),
+              filled: true,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -161,7 +217,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const Text('На сегодня отрывок не назначен.'),
               const SizedBox(height: 8),
               Text(
-                'Добавьте его в «Расписании отрывков» (значок календаря вверху).',
+                'Отрывки назначаются на будни. Добавьте их в «Расписании отрывков» '
+                '(значок календаря вверху).',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),
               ),
@@ -185,8 +242,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             if (_verses.isEmpty)
               Text(
-                'Текст этого отрывка отсутствует в подключённой базе перевода.\n'
-                'В образце есть лишь несколько отрывков — подключите полный '
+                'Текста этого отрывка нет в подключённой базе перевода.\n'
+                'В образце всего несколько отрывков — подключите полный '
                 'Синодальный перевод (см. README).',
                 style: theme.textTheme.bodyMedium
                     ?.copyWith(color: theme.colorScheme.error),

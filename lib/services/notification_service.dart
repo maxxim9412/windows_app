@@ -1,5 +1,4 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -19,20 +18,28 @@ class NotificationService {
 
   Future<void> init() async {
     tzdata.initializeTimeZones();
-    // Определяем реальный часовой пояс устройства, иначе timezone использует UTC
-    // и напоминания сработают не в то время.
-    try {
-      final tzName = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(tzName));
-    } catch (_) {
-      tz.setLocalLocation(tz.getLocation('Europe/Warsaw'));
-    }
+    // Определяем часовой пояс устройства без нативных плагинов: подбираем
+    // локацию из базы timezone, чьё текущее смещение совпадает со смещением
+    // устройства. Иначе timezone использует UTC и напоминания сработают не в то время.
+    tz.setLocalLocation(_localLocation());
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const iosInit = DarwinInitializationSettings();
     await _plugin.initialize(
       const InitializationSettings(android: androidInit, iOS: iosInit),
     );
+  }
+
+  /// Ищет tz-локацию с тем же смещением, что и у устройства сейчас.
+  tz.Location _localLocation() {
+    final offset = DateTime.now().timeZoneOffset;
+    final now = DateTime.now();
+    for (final loc in tz.timeZoneDatabase.locations.values) {
+      if (tz.TZDateTime.from(now, loc).timeZoneOffset == offset) {
+        return loc;
+      }
+    }
+    return tz.getLocation('UTC');
   }
 
   Future<bool> requestPermissions() async {
@@ -78,6 +85,8 @@ class NotificationService {
         scheduled,
         details,
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation:
+            UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
       );
     }

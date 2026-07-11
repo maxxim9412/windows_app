@@ -4,7 +4,7 @@ import '../models/note.dart';
 import '../utils/date_helpers.dart';
 import 'db.dart';
 
-/// Личные заметки: одна заметка на день, хранится локально.
+/// Личные заметки: одна заметка на день (4 ответа), хранится локально.
 class NotesRepository {
   NotesRepository._();
   static final NotesRepository instance = NotesRepository._();
@@ -23,22 +23,20 @@ class NotesRepository {
     return rows.map(Note.fromMap).toList();
   }
 
-  /// Сохранить заметку дня. Пустой текст — удаляем запись.
-  Future<void> save(DateTime day, String content) async {
+  /// Сохранить ответы за день. Если все пустые — удаляем запись.
+  Future<void> save(DateTime day, List<String> answers) async {
     final db = await AppDatabase.instance.database;
     final key = dateKey(day);
-    if (content.trim().isEmpty) {
+    final note = Note(
+      date: key,
+      answers: answers,
+      updatedAt: DateTime.now().millisecondsSinceEpoch,
+    );
+    if (note.isEmpty) {
       await db.delete('notes', where: 'date = ?', whereArgs: [key]);
       return;
     }
-    await db.insert(
-      'notes',
-      Note(
-        date: key,
-        content: content,
-        updatedAt: DateTime.now().millisecondsSinceEpoch,
-      ).toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.insert('notes', note.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
   }
 }
