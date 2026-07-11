@@ -87,26 +87,48 @@ class _ReadingScreenState extends State<ReadingScreen> {
                 if (_blocks.isEmpty)
                   _emptyCard(theme)
                 else ...[
-                  Card(
-                    elevation: 0,
-                    color: _done
-                        ? theme.colorScheme.primaryContainer
-                        : theme.colorScheme.surfaceContainerHighest,
-                    child: SwitchListTile(
-                      value: _done,
-                      onChanged: _toggleDone,
-                      secondary: Icon(_done
-                          ? Icons.check_circle
-                          : Icons.radio_button_unchecked),
-                      title: Text(_done ? 'Прочитано' : 'Отметить прочитанным'),
+                  if (_done)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        children: [
+                          Icon(Icons.check_circle,
+                              size: 18, color: theme.colorScheme.primary),
+                          const SizedBox(width: 6),
+                          Text('Прочитано',
+                              style: theme.textTheme.labelLarge
+                                  ?.copyWith(color: theme.colorScheme.primary)),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
                   ..._blocks.expand((b) => _buildBlock(theme, b)),
+                  const SizedBox(height: 8),
+                  _doneButton(theme),
                 ],
                 const SizedBox(height: 32),
               ],
             ),
+    );
+  }
+
+  Widget _doneButton(ThemeData theme) {
+    if (_done) {
+      return OutlinedButton.icon(
+        onPressed: () => _toggleDone(false),
+        icon: const Icon(Icons.check_circle),
+        label: const Text('Прочитано — снять отметку'),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(52),
+        ),
+      );
+    }
+    return FilledButton.icon(
+      onPressed: () => _toggleDone(true),
+      icon: const Icon(Icons.check),
+      label: const Text('ПРОЧИТАНО'),
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(52),
+      ),
     );
   }
 
