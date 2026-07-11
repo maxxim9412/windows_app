@@ -26,11 +26,32 @@ class AuthService {
     );
     final user = cred.user!;
     await user.updateDisplayName(name.trim());
+    await user.reload();
     await _db.collection('users').doc(user.uid).set({
       'email': email.trim().toLowerCase(),
       'name': name.trim(),
       'createdAt': FieldValue.serverTimestamp(),
     });
+  }
+
+  /// Профиль пользователя из Firestore (имя, почта).
+  Future<Map<String, dynamic>?> profile() async {
+    final id = uid;
+    if (id == null) return null;
+    final doc = await _db.collection('users').doc(id).get();
+    return doc.data();
+  }
+
+  /// Изменить имя (обновляет и Auth, и профиль в Firestore).
+  Future<void> updateName(String name) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await user.updateDisplayName(name.trim());
+    await user.reload();
+    await _db
+        .collection('users')
+        .doc(user.uid)
+        .set({'name': name.trim()}, SetOptions(merge: true));
   }
 
   Future<void> signIn({required String email, required String password}) async {
