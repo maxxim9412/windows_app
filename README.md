@@ -79,6 +79,34 @@ flutter run                # на подключённом устройстве 
 > `flutter create .` может перезаписать `pubspec.yaml` и `lib/main.dart`.
 > Проект под git — если это случится, верни их: `git checkout pubspec.yaml lib/main.dart`.
 
+### 5. Платформенная настройка для напоминаний (обязательно)
+
+После `flutter create .`:
+
+**Android** — в `android/app/src/main/AndroidManifest.xml` внутри `<manifest>` добавь:
+```xml
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+```
+и внутри `<application>`:
+```xml
+<receiver android:exported="false"
+    android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+<receiver android:exported="false"
+    android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+  <intent-filter>
+    <action android:name="android.intent.action.BOOT_COMPLETED"/>
+  </intent-filter>
+</receiver>
+```
+
+**iOS** — в `ios/Runner/AppDelegate.swift` перед `return` в `didFinishLaunching` добавь:
+```swift
+if #available(iOS 10.0, *) {
+  UNUserNotificationCenter.current().delegate = self as? UNUserNotificationCenterDelegate
+}
+```
+
 ---
 
 ## Подключить полный Синодальный перевод
