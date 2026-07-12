@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 
 import '../models/note.dart';
@@ -56,19 +55,14 @@ class NotesRepository {
   /// Зеркалируем заметку в Firestore: users/{uid}/notes/{date}.
   Future<void> _syncToCloud(String key, Note note) async {
     final uid = AuthService.instance.uid;
-    if (uid == null) {
-      debugPrint('[notes] sync skipped: нет uid (не вошёл)');
-      return;
-    }
+    if (uid == null) return;
     final ref = _db.collection('users').doc(uid).collection('notes').doc(key);
     try {
       if (note.isEmpty) {
         await ref.delete();
-        debugPrint('[notes] $key удалён (пустая заметка)');
         return;
       }
       final triadId = await TriadService.instance.currentTriadId();
-      debugPrint('[notes] пишу $key в облако (triadId=$triadId)…');
       await ref.set({
         'a1': note.answers[0],
         'a2': note.answers[1],
@@ -78,9 +72,8 @@ class NotesRepository {
         'triadId': triadId,
         'updatedAt': note.updatedAt,
       });
-      debugPrint('[notes] $key записан в облако ✓');
-    } catch (e) {
-      debugPrint('[notes] ОШИБКА записи в облако: $e');
+    } catch (_) {
+      // Оффлайн/ошибка сети — Firestore досинхронизирует позже.
     }
   }
 
