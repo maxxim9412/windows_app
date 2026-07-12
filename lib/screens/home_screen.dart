@@ -27,6 +27,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Passage? _passage;
   List<({int verse, String text})> _verses = const [];
   bool _loading = true;
+  bool _justSaved = false;
   Timer? _debounce;
 
   @override
@@ -71,6 +72,16 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _saveNote() async {
     final answers = _controllers.map((c) => c.text).toList();
     await NotesRepository.instance.save(_today, answers);
+  }
+
+  Future<void> _saveNow() async {
+    _debounce?.cancel();
+    await _saveNote();
+    if (!mounted) return;
+    setState(() => _justSaved = true);
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _justSaved = false);
+    });
   }
 
   @override
@@ -119,6 +130,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text('Мои размышления', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 ...List.generate(kNoteFieldCount, _buildQuestionTile),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _saveNow,
+                  icon: Icon(_justSaved ? Icons.check_circle : Icons.check),
+                  label: Text(_justSaved ? 'Сохранено' : 'Сохранить'),
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52)),
+                ),
                 const SizedBox(height: 32),
               ],
             ),
