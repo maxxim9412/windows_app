@@ -73,16 +73,6 @@ class _HomeScreenState extends State<HomeScreen> {
     await NotesRepository.instance.save(_today, answers);
   }
 
-  Future<void> _saveWithFeedback() async {
-    _debounce?.cancel();
-    await _saveNote();
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-          content: Text('Сохранено'), duration: Duration(seconds: 1)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -129,18 +119,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text('Мои размышления', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 ...List.generate(kNoteFieldCount, _buildQuestionTile),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _saveWithFeedback,
-                  icon: const Icon(Icons.check),
-                  label: const Text('Сохранить'),
-                  style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52)),
-                ),
-                const SizedBox(height: 8),
-                Text('Заметка также сохраняется автоматически',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline)),
                 const SizedBox(height: 32),
               ],
             ),
