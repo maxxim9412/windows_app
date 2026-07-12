@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 
@@ -45,7 +47,9 @@ class NotesRepository {
       await db.insert('notes', note.toMap(),
           conflictAlgorithm: ConflictAlgorithm.replace);
     }
-    await _syncToCloud(key, note);
+    // Облако — фоном: не ждём подтверждения сервера, чтобы автосохранение
+    // не «висело» при медленной сети. Firestore досинхронизирует сам.
+    unawaited(_syncToCloud(key, note));
   }
 
   /// Зеркалируем заметку в Firestore: users/{uid}/notes/{date}.

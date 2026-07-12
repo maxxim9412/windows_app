@@ -27,8 +27,8 @@ class _RootScaffoldState extends State<RootScaffold> {
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.self_improvement_outlined),
-            selectedIcon: Icon(Icons.self_improvement),
+            icon: Icon(Icons.psychology_outlined),
+            selectedIcon: Icon(Icons.psychology),
             label: 'QT',
           ),
           NavigationDestination(
