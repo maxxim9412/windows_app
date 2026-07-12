@@ -27,7 +27,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Passage? _passage;
   List<({int verse, String text})> _verses = const [];
   bool _loading = true;
-  bool _saving = false;
   Timer? _debounce;
 
   @override
@@ -70,11 +69,18 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _saveNote() async {
-    setState(() => _saving = true);
     final answers = _controllers.map((c) => c.text).toList();
     await NotesRepository.instance.save(_today, answers);
+  }
+
+  Future<void> _saveWithFeedback() async {
+    _debounce?.cancel();
+    await _saveNote();
     if (!mounted) return;
-    setState(() => _saving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+          content: Text('Сохранено'), duration: Duration(seconds: 1)),
+    );
   }
 
   @override
@@ -120,26 +126,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 12),
                 _buildPassageCard(theme),
                 const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Text('Мои размышления',
-                        style: theme.textTheme.titleMedium),
-                    const Spacer(),
-                    if (_saving)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    else
-                      Icon(Icons.check_circle_outline,
-                          size: 18, color: theme.colorScheme.outline),
-                  ],
-                ),
+                Text('Мои размышления', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 ...List.generate(kNoteFieldCount, _buildQuestionTile),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _saveWithFeedback,
+                  icon: const Icon(Icons.check),
+                  label: const Text('Сохранить'),
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size.fromHeight(52)),
+                ),
                 const SizedBox(height: 8),
-                Text('Сохраняется автоматически',
+                Text('Заметка также сохраняется автоматически',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.outline)),
                 const SizedBox(height: 32),
