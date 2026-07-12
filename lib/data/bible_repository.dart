@@ -11,7 +11,7 @@ class BibleRepository {
   BibleRepository._();
   static final BibleRepository instance = BibleRepository._();
 
-  static const String _assetPath = 'assets/bible/synodal_sample.json';
+  static const String _assetPath = 'assets/bible/synodal.json';
 
   Map<String, dynamic>? _books; // code -> book json
 
