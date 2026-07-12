@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import 'shared_meeting_screen.dart';
 
 import '../data/notes_repository.dart';
 import '../models/note.dart';
@@ -220,11 +221,15 @@ class _MemberView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Видеозвонок тройки
+        // Совместная встреча: аудиозвонок + синхронный просмотр заметок
         FilledButton.icon(
-          onPressed: () => _startCall(context),
-          icon: const Icon(Icons.videocam),
-          label: const Text('Видеозвонок'),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => SharedMeetingScreen(triad: triad)),
+          ),
+          icon: const Icon(Icons.headset_mic),
+          label: const Text('Совместная встреча'),
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         ),
         const SizedBox(height: 16),
@@ -295,15 +300,6 @@ class _MemberView extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  Future<void> _startCall(BuildContext context) async {
-    // Общая комната Jitsi по id тройки — все трое попадают в один звонок.
-    final uri = Uri.parse('https://meet.jit.si/BibleReflectionTriad${triad.id}');
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
-      _snack(context, 'Не удалось открыть видеозвонок');
-    }
   }
 
   Widget _inviteCard(BuildContext context) {

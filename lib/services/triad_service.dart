@@ -78,6 +78,33 @@ class TriadService {
       .snapshots()
       .map((d) => d.exists ? Triad.fromDoc(d) : null);
 
+  // --- Совместная встреча: синхронно показываемая заметка -----------------
+
+  /// Поток текущей показываемой заметки: {ownerUid, date, by}.
+  Stream<Map<String, dynamic>?> sharedSessionStream(String triadId) => _db
+      .collection('triads')
+      .doc(triadId)
+      .collection('shared')
+      .doc('current')
+      .snapshots()
+      .map((d) => d.exists ? d.data() : null);
+
+  /// Показать всем заметку участника [ownerUid] за день [date] (yyyy-MM-dd).
+  Future<void> presentNote(
+      String triadId, String ownerUid, String date) async {
+    await _db
+        .collection('triads')
+        .doc(triadId)
+        .collection('shared')
+        .doc('current')
+        .set({
+      'ownerUid': ownerUid,
+      'date': date,
+      'by': _uid,
+      'at': FieldValue.serverTimestamp(),
+    });
+  }
+
   // --- Операции -----------------------------------------------------------
 
   Future<Map<String, dynamic>> _myProfile() async {
