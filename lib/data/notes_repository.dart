@@ -1,13 +1,20 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 
 import '../models/note.dart';
+import '../services/auth_service.dart';
+import '../services/triad_service.dart';
 import '../utils/date_helpers.dart';
 import 'db.dart';
 
-/// Личные заметки: одна заметка на день (4 ответа), хранится локально.
+/// Личные заметки: одна заметка на день (4 ответа). Локально (SQLite) —
+/// основное хранилище; при входе синхронизируются в Firestore для обмена
+/// внутри тройки и отметок «кто сделал сегодня».
 class NotesRepository {
   NotesRepository._();
   static final NotesRepository instance = NotesRepository._();
+
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   Future<Note?> forDate(DateTime day) async {
     final db = await AppDatabase.instance.database;
@@ -34,9 +41,58 @@ class NotesRepository {
     );
     if (note.isEmpty) {
       await db.delete('notes', where: 'date = ?', whereArgs: [key]);
-      return;
+    } else {
+      await db.insert('notes', note.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace);
     }
-    await db.insert('notes', note.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
+    await _syncToCloud(key, note);
+  }
+
+  /// Зеркалируем заметку в Firestore: users/{uid}/notes/{date}.
+  Future<void> _syncToCloud(String key, Note note) async {
+    final uid = AuthService.instance.uid;
+    if (uid == null) return;
+    final ref = _db.collection('users').doc(uid).collection('notes').doc(key);
+    try {
+      if (note.isEmpty) {
+        await ref.delete();
+        return;
+      }
+      final triadId = await TriadService.instance.currentTriadId();
+      await ref.set({
+        'a1': note.answers[0],
+        'a2': note.answers[1],
+        'a3': note.answers[2],
+        'a4': note.answers[3],
+        'done': note.isDone,
+        'triadId': triadId,
+        'updatedAt': note.updatedAt,
+      });
+    } catch (_) {
+      // Оффлайн — Firestore досинхронизирует позже; локально уже сохранено.
+    }
+  }
+
+  /// Заметка участника тройки за день (для обмена и отметок).
+  Future<Note?> fetchMemberNote(String uid, DateTime day) async {
+    final key = dateKey(day);
+    try {
+      final doc =
+          await _db.collection('users').doc(uid).collection('notes').doc(key).get();
+      if (!doc.exists) return null;
+      final d = doc.data()!;
+      return Note(
+        date: key,
+        answers: [
+          (d['a1'] as String?) ?? '',
+          (d['a2'] as String?) ?? '',
+          (d['a3'] as String?) ?? '',
+          (d['a4'] as String?) ?? '',
+        ],
+        updatedAt: (d['updatedAt'] as int?) ?? 0,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 }

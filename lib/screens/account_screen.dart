@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../services/triad_service.dart';
+import 'triad_view.dart';
 
 /// Раздел «Тройка»: профиль пользователя и (далее) управление тройкой.
 class AccountScreen extends StatefulWidget {
@@ -94,29 +96,17 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              Card(
-                color: theme.colorScheme.surfaceContainerHighest,
-                child: const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Тройки — скоро',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                      SizedBox(height: 6),
-                      Text(
-                        'Здесь появится создание тройки, приглашение по ссылке '
-                        'и обмен заметками с двумя людьми.',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              const TriadView(),
               const SizedBox(height: 24),
+              const Divider(),
+              const SizedBox(height: 8),
               OutlinedButton.icon(
-                onPressed: () => AuthService.instance.signOut(),
+                onPressed: () {
+                  TriadService.instance.reset();
+                  AuthService.instance.signOut();
+                },
                 icon: const Icon(Icons.logout),
-                label: const Text('Выйти'),
+                label: const Text('Выйти из аккаунта'),
                 style: OutlinedButton.styleFrom(
                     minimumSize: const Size.fromHeight(52)),
               ),
