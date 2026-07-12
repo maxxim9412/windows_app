@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../data/notes_repository.dart';
 import '../models/note.dart';
@@ -218,6 +220,15 @@ class _MemberView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Видеозвонок тройки
+        FilledButton.icon(
+          onPressed: () => _startCall(context),
+          icon: const Icon(Icons.videocam),
+          label: const Text('Видеозвонок'),
+          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        ),
+        const SizedBox(height: 16),
+
         // Участники
         Text('Участники (${triad.memberCount}/3)',
             style: theme.textTheme.titleMedium),
@@ -286,6 +297,15 @@ class _MemberView extends StatelessWidget {
     );
   }
 
+  Future<void> _startCall(BuildContext context) async {
+    // Общая комната Jitsi по id тройки — все трое попадают в один звонок.
+    final uri = Uri.parse('https://meet.jit.si/BibleReflectionTriad${triad.id}');
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      _snack(context, 'Не удалось открыть видеозвонок');
+    }
+  }
+
   Widget _inviteCard(BuildContext context) {
     final theme = Theme.of(context);
     final link = '${TriadService.inviteBaseUrl}${triad.inviteCode}';
@@ -309,21 +329,24 @@ class _MemberView extends StatelessWidget {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    onPressed: () {
-                      Clipboard.setData(ClipboardData(text: link));
-                      _snack(context, 'Ссылка скопирована');
-                    },
-                    icon: const Icon(Icons.link),
-                    label: const Text('Скопировать ссылку'),
+                    onPressed: () => Share.share(
+                      'Присоединяйся к моей тройке в приложении '
+                      '«Размышления над Библией».\nСсылка: $link\n'
+                      'Или код: ${triad.inviteCode}',
+                      subject: 'Приглашение в тройку',
+                    ),
+                    icon: const Icon(Icons.ios_share),
+                    label: const Text('Поделиться'),
                   ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton(
+                OutlinedButton.icon(
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: triad.inviteCode));
-                    _snack(context, 'Код скопирован');
+                    Clipboard.setData(ClipboardData(text: link));
+                    _snack(context, 'Ссылка скопирована');
                   },
-                  child: const Text('Код'),
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text('Копировать'),
                 ),
               ],
             ),
@@ -381,6 +404,7 @@ class _MemberView extends StatelessWidget {
     final isRequester = r.by == uid;
     final approved = uid != null && r.approvals.contains(uid);
     final others = triad.memberUids.where((m) => m != r.targetUid).length;
+    final byName = triad.members[r.by]?.name ?? 'Участник';
 
     return Card(
       color: theme.colorScheme.errorContainer,
@@ -395,6 +419,8 @@ class _MemberView extends StatelessWidget {
                   : 'Предложено удалить: ${r.targetName}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
+            if (!isTarget && !isRequester)
+              Text('Инициатор: $byName', style: theme.textTheme.bodySmall),
             Text('Согласий: ${r.approvals.length}/$others',
                 style: theme.textTheme.bodySmall),
             const SizedBox(height: 8),
