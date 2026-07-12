@@ -77,6 +77,31 @@ class NotesRepository {
     }
   }
 
+  /// Живой поток заметки участника за день (для отметок «кто сделал сегодня»).
+  Stream<Note?> memberNoteStream(String uid, DateTime day) {
+    final key = dateKey(day);
+    return _db
+        .collection('users')
+        .doc(uid)
+        .collection('notes')
+        .doc(key)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists) return null;
+      final d = doc.data()!;
+      return Note(
+        date: key,
+        answers: [
+          (d['a1'] as String?) ?? '',
+          (d['a2'] as String?) ?? '',
+          (d['a3'] as String?) ?? '',
+          (d['a4'] as String?) ?? '',
+        ],
+        updatedAt: (d['updatedAt'] as int?) ?? 0,
+      );
+    }).handleError((_) => null);
+  }
+
   /// Заметка участника тройки за день (для обмена и отметок).
   Future<Note?> fetchMemberNote(String uid, DateTime day) async {
     final key = dateKey(day);

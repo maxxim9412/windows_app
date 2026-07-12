@@ -481,42 +481,11 @@ class _MemberView extends StatelessWidget {
 
 // --- Заметки участников за сегодня ---------------------------------------
 
-class _TodayNotes extends StatefulWidget {
+class _TodayNotes extends StatelessWidget {
   final Triad triad;
   const _TodayNotes({required this.triad});
 
-  @override
-  State<_TodayNotes> createState() => _TodayNotesState();
-}
-
-class _TodayNotesState extends State<_TodayNotes> {
-  final _today = dateOnly(DateTime.now());
-  final Map<String, Note?> _notes = {};
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void didUpdateWidget(_TodayNotes old) {
-    super.didUpdateWidget(old);
-    if (old.triad.memberUids.length != widget.triad.memberUids.length) {
-      _load();
-    }
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    for (final uid in widget.triad.memberUids) {
-      _notes[uid] = await NotesRepository.instance.fetchMemberNote(uid, _today);
-    }
-    if (mounted) setState(() => _loading = false);
-  }
-
-  void _view(BuildContext context, TriadMember? m, Note note) {
+  void _view(BuildContext context, TriadMember? m, Note note, DateTime today) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -528,7 +497,7 @@ class _TodayNotesState extends State<_TodayNotes> {
           padding: const EdgeInsets.all(16),
           children: [
             Text(m?.name ?? '', style: Theme.of(context).textTheme.titleLarge),
-            Text(humanDate(_today),
+            Text(humanDate(today),
                 style: Theme.of(context).textTheme.bodySmall),
             const Divider(height: 24),
             for (var i = 0; i < kNoteFieldCount; i++)
@@ -548,28 +517,32 @@ class _TodayNotesState extends State<_TodayNotes> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (_loading) {
-      return const Padding(
-        padding: EdgeInsets.all(16),
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
+    final today = dateOnly(DateTime.now());
     return Column(
-      children: widget.triad.memberUids.map((uid) {
-        final m = widget.triad.members[uid];
-        final note = _notes[uid];
-        final done = note != null && note.isDone;
-        return Card(
-          child: ListTile(
-            leading: Icon(
-              done ? Icons.check_circle : Icons.radio_button_unchecked,
-              color: done ? theme.colorScheme.primary : theme.colorScheme.outline,
-            ),
-            title: Text(m?.name.isNotEmpty == true ? m!.name : 'Без имени'),
-            subtitle: Text(done ? 'Сделал заметку' : 'Пока нет заметки'),
-            trailing: done ? const Icon(Icons.chevron_right) : null,
-            onTap: done ? () => _view(context, m, note) : null,
-          ),
+      children: triad.memberUids.map((uid) {
+        final m = triad.members[uid];
+        return StreamBuilder<Note?>(
+          stream: NotesRepository.instance.memberNoteStream(uid, today),
+          builder: (context, snap) {
+            final note = snap.data;
+            final done = note != null && note.isDone;
+            return Card(
+              child: ListTile(
+                leading: Icon(
+                  done ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: done
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.outline,
+                ),
+                title:
+                    Text(m?.name.isNotEmpty == true ? m!.name : 'Без имени'),
+                subtitle:
+                    Text(done ? 'Сделал заметку' : 'Пока нет заметки'),
+                trailing: done ? const Icon(Icons.chevron_right) : null,
+                onTap: done ? () => _view(context, m, note, today) : null,
+              ),
+            );
+          },
         );
       }).toList(),
     );
