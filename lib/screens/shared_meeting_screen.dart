@@ -1,6 +1,8 @@
+import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+import '../agora_config.dart';
 import '../data/notes_repository.dart';
 import '../models/note.dart';
 import '../models/triad.dart';
@@ -8,9 +10,9 @@ import '../services/triad_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
 
-/// Совместная встреча тройки: аудиозвонок (Jitsi) + синхронно показываемая
-/// заметка. У всех троих открыта одна и та же заметка; любой может показать
-/// свою или переключить на чужую.
+/// Совместная встреча тройки: встроенный аудиозвонок (Agora) + синхронно
+/// показываемая заметка. У всех троих открыта одна и та же заметка; любой
+/// может показать свою или переключить на чужую.
 class SharedMeetingScreen extends StatefulWidget {
   final Triad triad;
   const SharedMeetingScreen({super.key, required this.triad});
@@ -22,18 +24,99 @@ class SharedMeetingScreen extends StatefulWidget {
 class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
   DateTime _date = dateOnly(DateTime.now());
 
+  RtcEngine? _engine;
+  bool _inCall = false;
+  bool _joining = false;
+  bool _muted = false;
+  final Set<int> _remoteUids = {};
+
   Triad get triad => widget.triad;
 
-  Future<void> _startAudioCall() async {
-    final uri = Uri.parse(
-        'https://meet.jit.si/BibleReflectionTriad${triad.id}#config.startAudioOnly=true');
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Не удалось открыть аудиозвонок')),
+  @override
+  void dispose() {
+    _engine?.leaveChannel();
+    _engine?.release();
+    super.dispose();
+  }
+
+  // --- Звонок -------------------------------------------------------------
+
+  Future<void> _joinCall() async {
+    if (kAgoraAppId.isEmpty) {
+      _snack('Аудиозвонок не настроен: не задан App ID Agora (см. lib/agora_config.dart).');
+      return;
+    }
+    final mic = await Permission.microphone.request();
+    if (!mic.isGranted) {
+      _snack('Нужен доступ к микрофону для звонка.');
+      return;
+    }
+
+    setState(() => _joining = true);
+    try {
+      final engine = createAgoraRtcEngine();
+      await engine.initialize(const RtcEngineContext(appId: kAgoraAppId));
+      await engine.enableAudio();
+      engine.registerEventHandler(RtcEngineEventHandler(
+        onJoinChannelSuccess: (conn, elapsed) {
+          if (mounted) {
+            setState(() {
+              _inCall = true;
+              _joining = false;
+            });
+          }
+        },
+        onUserJoined: (conn, remoteUid, elapsed) {
+          if (mounted) setState(() => _remoteUids.add(remoteUid));
+        },
+        onUserOffline: (conn, remoteUid, reason) {
+          if (mounted) setState(() => _remoteUids.remove(remoteUid));
+        },
+      ));
+      await engine.joinChannel(
+        token: '',
+        channelId: triad.id,
+        uid: 0,
+        options: const ChannelMediaOptions(
+          channelProfile: ChannelProfileType.channelProfileCommunication,
+          clientRoleType: ClientRoleType.clientRoleBroadcaster,
+        ),
       );
+      _engine = engine;
+    } catch (e) {
+      if (mounted) {
+        setState(() => _joining = false);
+        _snack('Не удалось начать звонок: $e');
+      }
     }
   }
+
+  Future<void> _leaveCall() async {
+    await _engine?.leaveChannel();
+    await _engine?.release();
+    _engine = null;
+    if (mounted) {
+      setState(() {
+        _inCall = false;
+        _muted = false;
+        _remoteUids.clear();
+      });
+    }
+  }
+
+  Future<void> _toggleMute() async {
+    final m = !_muted;
+    await _engine?.muteLocalAudioStream(m);
+    if (mounted) setState(() => _muted = m);
+  }
+
+  void _snack(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  // --- Показ заметки ------------------------------------------------------
 
   Future<void> _present(String ownerUid) async {
     await TriadService.instance.presentNote(triad.id, ownerUid, dateKey(_date));
@@ -57,22 +140,9 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          FilledButton.icon(
-            onPressed: _startAudioCall,
-            icon: const Icon(Icons.call),
-            label: const Text('Аудиозвонок'),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Звонок откроется в Jitsi. Вернитесь в приложение — разговор '
-            'продолжится в фоне, и здесь можно вместе смотреть заметки.',
-            style:
-                theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
-          ),
+          _callCard(theme),
           const Divider(height: 32),
 
-          // Выбор дня
           Row(
             children: [
               Text('День:', style: theme.textTheme.titleSmall),
@@ -87,10 +157,65 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
           _presenterChips(theme),
           const Divider(height: 32),
 
-          // Синхронно показываемая заметка
           _sharedNote(theme),
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+
+  Widget _callCard(ThemeData theme) {
+    if (_joining) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(children: [
+            SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 12),
+            Text('Подключаюсь к звонку…'),
+          ]),
+        ),
+      );
+    }
+    if (!_inCall) {
+      return FilledButton.icon(
+        onPressed: _joinCall,
+        icon: const Icon(Icons.call),
+        label: const Text('Присоединиться к звонку'),
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+      );
+    }
+    return Card(
+      color: theme.colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.call, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                _remoteUids.isEmpty
+                    ? 'В звонке. Ждём собеседников…'
+                    : 'В звонке • собеседников: ${_remoteUids.length}',
+                style: theme.textTheme.titleSmall,
+              ),
+            ),
+            IconButton(
+              tooltip: _muted ? 'Включить микрофон' : 'Выключить микрофон',
+              onPressed: _toggleMute,
+              icon: Icon(_muted ? Icons.mic_off : Icons.mic),
+            ),
+            IconButton(
+              tooltip: 'Выйти из звонка',
+              onPressed: _leaveCall,
+              icon: Icon(Icons.call_end, color: theme.colorScheme.error),
+            ),
+          ],
+        ),
       ),
     );
   }
