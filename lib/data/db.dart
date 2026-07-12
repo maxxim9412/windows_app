@@ -17,7 +17,7 @@ class AppDatabase {
     final path = p.join(dir, 'bible_reflection.db');
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE passages (
@@ -64,6 +64,29 @@ class AppDatabase {
         }
         if (oldVersion < 3) {
           await _createReadingTables(db);
+        }
+        if (oldVersion < 4) {
+          // Убираем устаревшую колонку notes.content (NOT NULL), которая
+          // ломала вставку 4-польных заметок. SQLite не умеет DROP COLUMN на
+          // старых версиях — пересобираем таблицу.
+          await db.execute('ALTER TABLE notes RENAME TO notes_old');
+          await db.execute('''
+            CREATE TABLE notes (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              date TEXT NOT NULL,
+              a1 TEXT NOT NULL DEFAULT '',
+              a2 TEXT NOT NULL DEFAULT '',
+              a3 TEXT NOT NULL DEFAULT '',
+              a4 TEXT NOT NULL DEFAULT '',
+              updated_at INTEGER NOT NULL
+            )
+          ''');
+          await db.execute('''
+            INSERT INTO notes (id, date, a1, a2, a3, a4, updated_at)
+            SELECT id, date, a1, a2, a3, a4, updated_at FROM notes_old
+          ''');
+          await db.execute('DROP TABLE notes_old');
+          await db.execute('CREATE UNIQUE INDEX idx_notes_date ON notes(date)');
         }
       },
     );
