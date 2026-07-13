@@ -11,4 +11,4 @@ const String kAgoraAppId = 'd3526b7dcaa04e358c8d638f5eba9beb';
 ///
 /// Внимание: сертификат — секрет; здесь он встроен в приложение (упрощение для
 /// небольшой частной группы). Позже безопаснее выдавать токен с сервера.
-const String kAgoraAppCertificate = '';
+const String kAgoraAppCertificate = '8493394d997d483b8b397143402d452c';
