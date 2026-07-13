@@ -72,6 +72,12 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
         onUserOffline: (conn, remoteUid, reason) {
           if (mounted) setState(() => _remoteUids.remove(remoteUid));
         },
+        onError: (err, msg) {
+          if (mounted && !_inCall) {
+            setState(() => _joining = false);
+            _snack('Ошибка звонка: $err ${msg.isNotEmpty ? '($msg)' : ''}');
+          }
+        },
       ));
       await engine.joinChannel(
         token: '',
@@ -83,6 +89,16 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
         ),
       );
       _engine = engine;
+
+      // Если за 12 сек не подключились — вероятно, нужен токен (включён App
+      // Certificate) или нет сети.
+      Future.delayed(const Duration(seconds: 12), () {
+        if (mounted && _joining && !_inCall) {
+          setState(() => _joining = false);
+          _snack('Не удалось подключиться. Возможно, у проекта Agora включён '
+              'App Certificate (нужен токен).');
+        }
+      });
     } catch (e) {
       if (mounted) {
         setState(() => _joining = false);
