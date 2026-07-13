@@ -1,4 +1,5 @@
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -42,6 +43,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
   // --- Звонок -------------------------------------------------------------
 
   Future<void> _joinCall() async {
+    if (_joining || _inCall || _engine != null) return; // защита от двойного входа
     if (kAgoraAppId.isEmpty) {
       _snack('Аудиозвонок не настроен: не задан App ID Agora (см. lib/agora_config.dart).');
       return;
@@ -59,6 +61,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
       await engine.enableAudio();
       engine.registerEventHandler(RtcEngineEventHandler(
         onJoinChannelSuccess: (conn, elapsed) {
+          debugPrint('[call] onJoinChannelSuccess channel=${conn.channelId}');
           if (mounted) {
             setState(() {
               _inCall = true;
@@ -67,12 +70,14 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
           }
         },
         onUserJoined: (conn, remoteUid, elapsed) {
+          debugPrint('[call] onUserJoined $remoteUid');
           if (mounted) setState(() => _remoteUids.add(remoteUid));
         },
         onUserOffline: (conn, remoteUid, reason) {
           if (mounted) setState(() => _remoteUids.remove(remoteUid));
         },
         onError: (err, msg) {
+          debugPrint('[call] onError $err $msg');
           if (mounted && !_inCall) {
             setState(() => _joining = false);
             _snack('Ошибка звонка: $err ${msg.isNotEmpty ? '($msg)' : ''}');
