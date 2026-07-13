@@ -1,4 +1,5 @@
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
+import 'package:agora_token_service/agora_token_service.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -83,8 +84,21 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
           }
         },
       ));
+      // Если у проекta включён App Certificate — генерируем токен, иначе пусто.
+      final token = kAgoraAppCertificate.isEmpty
+          ? ''
+          : RtcTokenBuilder.build(
+              appId: kAgoraAppId,
+              appCertificate: kAgoraAppCertificate,
+              channelName: triad.id,
+              uid: '0',
+              role: RtcRole.publisher,
+              expireTimestamp:
+                  DateTime.now().add(const Duration(hours: 24)).millisecondsSinceEpoch ~/
+                      1000,
+            );
       await engine.joinChannel(
-        token: '',
+        token: token,
         channelId: triad.id,
         uid: 0,
         options: const ChannelMediaOptions(
