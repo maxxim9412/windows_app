@@ -30,9 +30,16 @@ class _AccountScreenState extends State<AccountScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final profile = await AuthService.instance.profile();
-    final churches = await ChurchRepository.instance.allChurches();
-    final isSuper = await AuthService.instance.isAdmin();
+    Map<String, dynamic>? profile;
+    var churches = const <Church>[];
+    var isSuper = false;
+    try {
+      profile = await AuthService.instance.profile();
+      churches = await ChurchRepository.instance.allChurches();
+      isSuper = await AuthService.instance.isAdmin();
+    } catch (_) {
+      // Ошибка сети/правил — не «вешаем» страницу, покажем что есть.
+    }
     if (!mounted) return;
     setState(() {
       _profile = profile;
