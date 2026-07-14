@@ -37,8 +37,8 @@ class _RootScaffoldState extends State<RootScaffold> {
             label: 'Чтение',
           ),
           NavigationDestination(
-            icon: Icon(Icons.group_outlined),
-            selectedIcon: Icon(Icons.group),
+            icon: Icon(Icons.groups_outlined),
+            selectedIcon: Icon(Icons.groups),
             label: 'Тройка',
           ),
         ],
