@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../models/triad.dart';
@@ -62,6 +63,7 @@ class _RootScaffoldState extends State<RootScaffold> {
   }
 
   void _onCallState(Map<String, dynamic>? state) {
+    if (kIsWeb) return; // в вебе звонков нет
     final active = (state?['active'] as bool?) ?? false;
     final startedBy = state?['startedBy'] as String?;
     final myUid = AuthService.instance.uid;

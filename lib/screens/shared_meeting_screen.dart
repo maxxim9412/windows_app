@@ -1,5 +1,6 @@
 import 'package:agora_rtc_engine/agora_rtc_engine.dart';
 import 'package:agora_token_service/agora_token_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -55,6 +56,10 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
   // --- Звонок -------------------------------------------------------------
 
   Future<void> _joinCall() async {
+    if (kIsWeb) {
+      _snack('Голосовые звонки доступны в мобильном приложении.');
+      return;
+    }
     if (_joining || _inCall || _engine != null) return; // защита от двойного входа
     if (kAgoraAppId.isEmpty) {
       _snack('Аудиозвонок не настроен: не задан App ID Agora (см. lib/agora_config.dart).');

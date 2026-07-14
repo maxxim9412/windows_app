@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -17,6 +18,7 @@ class NotificationService {
   static const List<int> _weekdayIds = [1, 2, 3, 4, 5];
 
   Future<void> init() async {
+    if (kIsWeb) return; // в вебе локальных уведомлений нет
     tzdata.initializeTimeZones();
     // Определяем часовой пояс устройства без нативных плагинов: подбираем
     // локацию из базы timezone, чьё текущее смещение совпадает со смещением
@@ -43,6 +45,7 @@ class NotificationService {
   }
 
   Future<bool> requestPermissions() async {
+    if (kIsWeb) return false;
     final ios = _plugin.resolvePlatformSpecificImplementation<
         IOSFlutterLocalNotificationsPlugin>();
     final iosGranted = await ios?.requestPermissions(
@@ -62,6 +65,7 @@ class NotificationService {
 
   /// Запланировать напоминания на будни в [hour]:[minute].
   Future<void> scheduleWeekdays({required int hour, required int minute}) async {
+    if (kIsWeb) return;
     await cancelAll();
 
     const details = NotificationDetails(
@@ -92,7 +96,7 @@ class NotificationService {
     }
   }
 
-  Future<void> cancelAll() => _plugin.cancelAll();
+  Future<void> cancelAll() => kIsWeb ? Future.value() : _plugin.cancelAll();
 
   tz.TZDateTime _nextInstanceOfWeekday(int weekday, int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);

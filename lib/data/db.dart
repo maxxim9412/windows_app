@@ -1,5 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 /// Единая точка доступа к локальной БД (заметки + расписание отрывков).
 class AppDatabase {
@@ -13,8 +15,14 @@ class AppDatabase {
   }
 
   Future<Database> _open() async {
-    final dir = await getDatabasesPath();
-    final path = p.join(dir, 'bible_reflection.db');
+    final String path;
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWeb; // SQLite через WASM в браузере
+      path = 'bible_reflection.db';
+    } else {
+      final dir = await getDatabasesPath();
+      path = p.join(dir, 'bible_reflection.db');
+    }
     return openDatabase(
       path,
       version: 4,
