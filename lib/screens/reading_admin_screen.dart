@@ -83,7 +83,7 @@ class _ReadingAdminScreenState extends State<ReadingAdminScreen> {
             itemBuilder: (context, i) {
               final r = items[i];
               return Dismissible(
-                key: ValueKey(r.id),
+                key: ValueKey('${r.date}#${r.orderIndex}'),
                 direction: DismissDirection.endToStart,
                 background: Container(
                   color: Colors.red,
@@ -92,7 +92,8 @@ class _ReadingAdminScreenState extends State<ReadingAdminScreen> {
                   child: const Icon(Icons.delete, color: Colors.white),
                 ),
                 onDismissed: (_) async {
-                  await ReadingRepository.instance.delete(r.id!);
+                  await ReadingRepository.instance
+                      .removePortion(r.date, r.orderIndex);
                 },
                 child: ListTile(
                   title: Text(r.reference),
@@ -137,12 +138,15 @@ class _ReadingEditorState extends State<_ReadingEditor> {
       );
       return;
     }
-    await ReadingRepository.instance.insert(Reading(
-      date: dateKey(_date),
-      bookCode: _bookCode,
-      chapterStart: cs,
-      chapterEnd: ce,
-    ));
+    await ReadingRepository.instance.addPortion(
+      dateKey(_date),
+      Reading(
+        date: dateKey(_date),
+        bookCode: _bookCode,
+        chapterStart: cs,
+        chapterEnd: ce,
+      ),
+    );
     if (mounted) Navigator.pop(context, true);
   }
 

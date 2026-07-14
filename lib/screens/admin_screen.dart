@@ -85,7 +85,7 @@ class _AdminScreenState extends State<AdminScreen> {
             itemBuilder: (context, i) {
               final p = items[i];
               return Dismissible(
-                key: ValueKey(p.id),
+                key: ValueKey(p.date),
                 direction: DismissDirection.endToStart,
                 background: Container(
                   color: Colors.red,
@@ -94,7 +94,7 @@ class _AdminScreenState extends State<AdminScreen> {
                   child: const Icon(Icons.delete, color: Colors.white),
                 ),
                 onDismissed: (_) async {
-                  await PassageRepository.instance.delete(p.id!);
+                  await PassageRepository.instance.deleteByDate(p.date);
                 },
                 child: ListTile(
                   title: Text(p.reference),
@@ -158,7 +158,6 @@ class _PassageEditorState extends State<_PassageEditor> {
         : _toCtrl.text.trim());
     if (chapter == null || from == null || to == null || to < from) return null;
     return Passage(
-      id: widget.existing?.id,
       date: dateKey(_date),
       bookCode: _bookCode,
       chapter: chapter,

@@ -75,18 +75,17 @@ class _ReadingImportScreenState extends State<ReadingImportScreen> {
     for (final di in _days) {
       if (di.date == null) continue;
       final key = dateKey(di.date!);
-      await ReadingRepository.instance.deleteDate(key);
-      var order = 0;
+      final items = <Reading>[];
       for (final p in di.portions) {
         if (!p.ok) continue;
-        await ReadingRepository.instance.insert(Reading(
+        items.add(Reading(
           date: key,
           bookCode: p.ref!.bookCode,
           chapterStart: p.ref!.chapterStart,
           chapterEnd: p.ref!.chapterEnd,
-          orderIndex: order++,
         ));
       }
+      await ReadingRepository.instance.setDateItems(key, items);
       count++;
     }
     if (!mounted) return;

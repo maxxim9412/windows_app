@@ -61,7 +61,21 @@ class AuthService {
     );
   }
 
-  Future<void> signOut() => _auth.signOut();
+  bool? _isAdmin;
+
+  /// Является ли текущий пользователь администратором (поле isAdmin в профиле).
+  /// Кэшируется до выхода.
+  Future<bool> isAdmin() async {
+    if (_isAdmin != null) return _isAdmin!;
+    final p = await profile();
+    _isAdmin = (p?['isAdmin'] as bool?) ?? false;
+    return _isAdmin!;
+  }
+
+  Future<void> signOut() {
+    _isAdmin = null;
+    return _auth.signOut();
+  }
 
   /// Человекочитаемое сообщение об ошибке авторизации.
   static String messageFor(Object e) {

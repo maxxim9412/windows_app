@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/bible_repository.dart';
 import '../data/reading_repository.dart';
 import '../models/reading.dart';
+import '../services/auth_service.dart';
 import '../utils/date_helpers.dart';
 import 'reading_admin_screen.dart';
 
@@ -22,6 +23,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   List<_ReadingBlock> _blocks = const [];
   bool _done = false;
   bool _loading = true;
+  bool _isAdmin = false;
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    _isAdmin = await AuthService.instance.isAdmin();
     final readings = await ReadingRepository.instance.forDate(_today);
     final done = await ReadingRepository.instance.isDone(_today);
 
@@ -64,15 +67,17 @@ class _ReadingScreenState extends State<ReadingScreen> {
       appBar: AppBar(
         title: const Text('Ежедневное чтение'),
         actions: [
-          IconButton(
-            tooltip: 'План чтения',
-            icon: const Icon(Icons.edit_calendar_outlined),
-            onPressed: () async {
-              await Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const ReadingAdminScreen()));
-              _load();
-            },
-          ),
+          if (_isAdmin)
+            IconButton(
+              tooltip: 'План чтения',
+              icon: const Icon(Icons.edit_calendar_outlined),
+              onPressed: () async {
+                await Navigator.push(context,
+                    MaterialPageRoute(
+                        builder: (_) => const ReadingAdminScreen()));
+                _load();
+              },
+            ),
         ],
       ),
       body: _loading

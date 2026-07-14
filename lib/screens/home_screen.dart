@@ -6,6 +6,7 @@ import '../data/bible_repository.dart';
 import '../data/notes_repository.dart';
 import '../data/passage_repository.dart';
 import '../models/passage.dart';
+import '../services/auth_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
 import 'admin_screen.dart';
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<({int verse, String text})> _verses = const [];
   bool _loading = true;
   bool _justSaved = false;
+  bool _isAdmin = false;
   Timer? _debounce;
 
   @override
@@ -47,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final isAdmin = await AuthService.instance.isAdmin();
     final passage = await PassageRepository.instance.forDate(_today);
     final verses = passage == null
         ? const <({int verse, String text})>[]
@@ -54,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final note = await NotesRepository.instance.forDate(_today);
 
     if (!mounted) return;
+    _isAdmin = isAdmin;
     for (var i = 0; i < kNoteFieldCount; i++) {
       _controllers[i].text = note?.answers[i] ?? '';
     }
@@ -97,15 +101,16 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const NotesListScreen())),
           ),
-          IconButton(
-            tooltip: 'Расписание отрывков',
-            icon: const Icon(Icons.edit_calendar_outlined),
-            onPressed: () async {
-              await Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => const AdminScreen()));
-              _load();
-            },
-          ),
+          if (_isAdmin)
+            IconButton(
+              tooltip: 'Расписание отрывков',
+              icon: const Icon(Icons.edit_calendar_outlined),
+              onPressed: () async {
+                await Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const AdminScreen()));
+                _load();
+              },
+            ),
           IconButton(
             tooltip: 'Напоминания',
             icon: const Icon(Icons.notifications_outlined),
