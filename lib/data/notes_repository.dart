@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 
 import '../models/note.dart';
@@ -9,16 +10,40 @@ import '../services/triad_service.dart';
 import '../utils/date_helpers.dart';
 import 'db.dart';
 
-/// Личные заметки: одна заметка на день (4 ответа). Локально (SQLite) —
-/// основное хранилище; при входе синхронизируются в Firestore для обмена
-/// внутри тройки и отметок «кто сделал сегодня».
+/// Личные заметки: одна заметка на день (4 ответа). На мобильных основное
+/// хранилище — локальная SQLite (с зеркалированием в Firestore). В вебе
+/// браузерная SQLite ненадёжна (iOS Safari), поэтому там читаем/пишем прямо
+/// в Firestore — те же документы `users/{uid}/notes/{date}`.
 class NotesRepository {
   NotesRepository._();
   static final NotesRepository instance = NotesRepository._();
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  Note _noteFromCloud(String date, Map<String, dynamic> d) => Note(
+        date: date,
+        answers: [
+          (d['a1'] as String?) ?? '',
+          (d['a2'] as String?) ?? '',
+          (d['a3'] as String?) ?? '',
+          (d['a4'] as String?) ?? '',
+        ],
+        updatedAt: (d['updatedAt'] as int?) ?? 0,
+      );
+
   Future<Note?> forDate(DateTime day) async {
+    if (kIsWeb) {
+      final uid = AuthService.instance.uid;
+      if (uid == null) return null;
+      final doc = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('notes')
+          .doc(dateKey(day))
+          .get();
+      if (!doc.exists) return null;
+      return _noteFromCloud(doc.id, doc.data()!);
+    }
     final db = await AppDatabase.instance.database;
     final rows = await db.query('notes',
         where: 'date = ?', whereArgs: [dateKey(day)], limit: 1);
@@ -27,6 +52,17 @@ class NotesRepository {
   }
 
   Future<List<Note>> all() async {
+    if (kIsWeb) {
+      final uid = AuthService.instance.uid;
+      if (uid == null) return const [];
+      final q = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('notes')
+          .orderBy(FieldPath.documentId, descending: true)
+          .get();
+      return q.docs.map((doc) => _noteFromCloud(doc.id, doc.data())).toList();
+    }
     final db = await AppDatabase.instance.database;
     final rows = await db.query('notes', orderBy: 'date DESC');
     return rows.map(Note.fromMap).toList();
@@ -34,13 +70,19 @@ class NotesRepository {
 
   /// Сохранить ответы за день. Если все пустые — удаляем запись.
   Future<void> save(DateTime day, List<String> answers) async {
-    final db = await AppDatabase.instance.database;
     final key = dateKey(day);
     final note = Note(
       date: key,
       answers: answers,
       updatedAt: DateTime.now().millisecondsSinceEpoch,
     );
+    if (kIsWeb) {
+      // В вебе локальной БД нет — пишем сразу в облако (ждём, чтобы заметка
+      // точно сохранилась при уходе со страницы).
+      await _syncToCloud(key, note);
+      return;
+    }
+    final db = await AppDatabase.instance.database;
     if (note.isEmpty) {
       await db.delete('notes', where: 'date = ?', whereArgs: [key]);
     } else {

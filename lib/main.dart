@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -9,15 +10,22 @@ import 'services/notification_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Firebase (аккаунты, тройки, обмен заметками).
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  // В вебе initializeApp иногда не завершает Future — ограничиваем таймаутом,
+  // чтобы интерфейс запустился (Firebase при этом остаётся инициализированным).
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    ).timeout(const Duration(seconds: 6));
+  } catch (e) {
+    debugPrint('[main] Firebase init: $e');
+  }
 
-  // Русская локаль для форматирования дат.
-  await initializeDateFormatting('ru');
+  try {
+    await initializeDateFormatting('ru');
+  } catch (e) {
+    debugPrint('[main] intl: $e');
+  }
 
-  // Напоминания.
   await NotificationService.instance.init();
 
   runApp(const BibleReflectionApp());

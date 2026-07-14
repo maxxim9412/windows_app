@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 
 import '../models/reading.dart';
@@ -93,9 +94,20 @@ class ReadingRepository {
     }
   }
 
-  // --- Отметки о прочтении (личные, локально) ---------------------------
+  // --- Отметки о прочтении (личные) -------------------------------------
+  // Мобильные: локальная SQLite (`reading_done`). Веб: браузерная SQLite
+  // ненадёжна, поэтому храним отметки в карте `readingDone` профиля
+  // пользователя (`users/{uid}`) — правила Firestore уже разрешают владельцу
+  // писать свой документ, отдельного правила не нужно.
 
   Future<bool> isDone(DateTime day) async {
+    if (kIsWeb) {
+      final uid = AuthService.instance.uid;
+      if (uid == null) return false;
+      final doc = await _db.collection('users').doc(uid).get();
+      final map = doc.data()?['readingDone'] as Map<String, dynamic>?;
+      return map?[dateKey(day)] == true;
+    }
     final db = await AppDatabase.instance.database;
     final rows = await db.query('reading_done',
         where: 'date = ?', whereArgs: [dateKey(day)], limit: 1);
@@ -104,6 +116,15 @@ class ReadingRepository {
   }
 
   Future<void> setDone(DateTime day, bool done) async {
+    if (kIsWeb) {
+      final uid = AuthService.instance.uid;
+      if (uid == null) return;
+      // merge:true объединяет ключи вложенной карты, не затирая другие даты.
+      await _db.collection('users').doc(uid).set({
+        'readingDone': {dateKey(day): done},
+      }, SetOptions(merge: true));
+      return;
+    }
     final db = await AppDatabase.instance.database;
     await db.insert(
       'reading_done',

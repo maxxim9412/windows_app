@@ -22,3 +22,6 @@ pubspec.lock
 /linux/
 /windows/
 /web/
+
+# Firebase
+.firebase/

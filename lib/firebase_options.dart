@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -57,6 +54,15 @@ class DefaultFirebaseOptions {
     appId: '1:96467453228:android:f9e39320e2bef3e2591889',
     messagingSenderId: '96467453228',
     projectId: 'bible-reflection',
+    databaseURL: 'https://bible-reflection-default-rtdb.europe-west1.firebasedatabase.app',
+    storageBucket: 'bible-reflection.firebasestorage.app',
+  );
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBGNe8YzzohF_jCDeSwbyITNYkpIITrw-M',
+    appId: '1:96467453228:web:70cdf51cda13cfc7591889',
+    messagingSenderId: '96467453228',
+    projectId: 'bible-reflection',
+    authDomain: 'bible-reflection.firebaseapp.com',
     databaseURL: 'https://bible-reflection-default-rtdb.europe-west1.firebasedatabase.app',
     storageBucket: 'bible-reflection.firebasestorage.app',
   );

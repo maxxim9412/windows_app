@@ -17,7 +17,7 @@ class AppDatabase {
   Future<Database> _open() async {
     final String path;
     if (kIsWeb) {
-      databaseFactory = databaseFactoryFfiWeb; // SQLite через WASM в браузере
+      databaseFactory = databaseFactoryFfiWebNoWebWorker; // SQLite через WASM в браузере
       path = 'bible_reflection.db';
     } else {
       final dir = await getDatabasesPath();
