@@ -61,6 +61,11 @@ class AuthService {
     );
   }
 
+  /// Отправить письмо для сброса пароля.
+  Future<void> sendPasswordReset(String email) async {
+    await _auth.sendPasswordResetEmail(email: email.trim());
+  }
+
   bool? _isAdmin;
 
   /// Является ли текущий пользователь администратором (поле isAdmin в профиле).

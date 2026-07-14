@@ -55,6 +55,30 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _resetPassword() async {
+    final email = _emailCtrl.text.trim();
+    if (!email.contains('@')) {
+      setState(() => _error = 'Введите почту — на неё придёт письмо для сброса.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await AuthService.instance.sendPasswordReset(email);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Письмо для сброса отправлено на $email')),
+        );
+      }
+    } catch (e) {
+      if (mounted) setState(() => _error = AuthService.messageFor(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -155,6 +179,11 @@ class _AuthScreenState extends State<AuthScreen> {
                           ? 'Уже есть аккаунт? Войти'
                           : 'Нет аккаунта? Зарегистрироваться'),
                     ),
+                    if (!_isRegister)
+                      TextButton(
+                        onPressed: _busy ? null : _resetPassword,
+                        child: const Text('Забыли пароль?'),
+                      ),
                   ],
                 ),
               ),
