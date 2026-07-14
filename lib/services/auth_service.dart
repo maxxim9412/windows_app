@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../data/church_repository.dart';
+
 /// Обёртка над Firebase Auth + профиль пользователя в Firestore.
 class AuthService {
   AuthService._();
@@ -14,11 +16,12 @@ class AuthService {
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
 
-  /// Регистрация. Создаёт аккаунт, задаёт имя и профиль в Firestore.
+  /// Регистрация. Создаёт аккаунт, задаёт имя, церковь и профиль в Firestore.
   Future<void> register({
     required String email,
     required String password,
     required String name,
+    String? churchId,
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(
       email: email.trim(),
@@ -30,8 +33,11 @@ class AuthService {
     await _db.collection('users').doc(user.uid).set({
       'email': email.trim().toLowerCase(),
       'name': name.trim(),
+      'churchId': churchId,
       'createdAt': FieldValue.serverTimestamp(),
     });
+    _churchId = churchId;
+    _churchFetched = true;
   }
 
   /// Профиль пользователя из Firestore (имя, почта).
@@ -68,8 +74,7 @@ class AuthService {
 
   bool? _isAdmin;
 
-  /// Является ли текущий пользователь администратором (поле isAdmin в профиле).
-  /// Кэшируется до выхода.
+  /// Супер-админ (поле isAdmin в профиле): управляет церквями и их админами.
   Future<bool> isAdmin() async {
     if (_isAdmin != null) return _isAdmin!;
     final p = await profile();
@@ -77,8 +82,42 @@ class AuthService {
     return _isAdmin!;
   }
 
+  // --- Церковь пользователя ----------------------------------------------
+  String? _churchId;
+  bool _churchFetched = false;
+
+  Future<String?> currentChurchId() async {
+    if (_churchFetched) return _churchId;
+    final p = await profile();
+    _churchId = p?['churchId'] as String?;
+    _churchFetched = true;
+    return _churchId;
+  }
+
+  /// Сменить свою церковь.
+  Future<void> setChurch(String? churchId) async {
+    final id = uid;
+    if (id == null) return;
+    await _db
+        .collection('users')
+        .doc(id)
+        .set({'churchId': churchId}, SetOptions(merge: true));
+    _churchId = churchId;
+    _churchFetched = true;
+  }
+
+  /// Является ли текущий пользователь админом СВОЕЙ церкви (ведёт её график).
+  Future<bool> isChurchAdmin() async {
+    final cid = await currentChurchId();
+    if (cid == null) return false;
+    final church = await ChurchRepository.instance.byId(cid);
+    return church?.adminUids.contains(uid) ?? false;
+  }
+
   Future<void> signOut() {
     _isAdmin = null;
+    _churchId = null;
+    _churchFetched = false;
     return _auth.signOut();
   }
 

@@ -1,17 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/passage.dart';
+import '../services/auth_service.dart';
 import '../utils/date_helpers.dart';
 
-/// Общий для всех пользователей график отрывков QT (Firestore, коллекция
-/// `passages`, id документа = дата yyyy-MM-dd). Наполняет администратор,
-/// остальные видят только для чтения.
+/// График отрывков QT конкретной церкви (Firestore:
+/// `churches/{churchId}/passages/{date}`). Ведёт админ церкви, остальные —
+/// только чтение. Если у пользователя не выбрана церковь — пусто.
 class PassageRepository {
   PassageRepository._();
   static final PassageRepository instance = PassageRepository._();
 
-  final CollectionReference<Map<String, dynamic>> _col =
-      FirebaseFirestore.instance.collection('passages');
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  Future<CollectionReference<Map<String, dynamic>>?> _col() async {
+    final cid = await AuthService.instance.currentChurchId();
+    if (cid == null) return null;
+    return _db.collection('churches').doc(cid).collection('passages');
+  }
 
   Passage _fromDoc(String date, Map<String, dynamic> d) => Passage(
         date: date,
@@ -22,20 +28,24 @@ class PassageRepository {
       );
 
   Future<Passage?> forDate(DateTime day) async {
-    final doc = await _col.doc(dateKey(day)).get();
+    final col = await _col();
+    if (col == null) return null;
+    final doc = await col.doc(dateKey(day)).get();
     if (!doc.exists) return null;
     return _fromDoc(doc.id, doc.data()!);
   }
 
   Future<List<Passage>> all() async {
-    final q =
-        await _col.orderBy(FieldPath.documentId, descending: true).get();
+    final col = await _col();
+    if (col == null) return const [];
+    final q = await col.orderBy(FieldPath.documentId, descending: true).get();
     return q.docs.map((doc) => _fromDoc(doc.id, doc.data())).toList();
   }
 
-  /// Добавить/заменить отрывок на день (только админ — по правилам Firestore).
   Future<void> upsert(Passage p) async {
-    await _col.doc(p.date).set({
+    final col = await _col();
+    if (col == null) return;
+    await col.doc(p.date).set({
       'book_code': p.bookCode,
       'chapter': p.chapter,
       'verse_start': p.verseStart,
@@ -44,6 +54,8 @@ class PassageRepository {
   }
 
   Future<void> deleteByDate(String date) async {
-    await _col.doc(date).delete();
+    final col = await _col();
+    if (col == null) return;
+    await col.doc(date).delete();
   }
 }

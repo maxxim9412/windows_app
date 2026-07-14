@@ -2,18 +2,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 
 import '../models/reading.dart';
+import '../services/auth_service.dart';
 import '../utils/date_helpers.dart';
 import 'db.dart';
 
-/// Общий план чтения (Firestore, коллекция `readings`, id документа = дата,
-/// поле `items` = массив глав на день). Наполняет администратор.
-/// Отметки «прочитано» — личные, хранятся локально (SQLite `reading_done`).
+/// План чтения конкретной церкви (Firestore:
+/// `churches/{churchId}/readings/{date}`, поле `items`). Ведёт админ церкви.
+/// Отметки «прочитано» — личные, локально (SQLite `reading_done`).
 class ReadingRepository {
   ReadingRepository._();
   static final ReadingRepository instance = ReadingRepository._();
 
-  final CollectionReference<Map<String, dynamic>> _col =
-      FirebaseFirestore.instance.collection('readings');
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  Future<CollectionReference<Map<String, dynamic>>?> _col() async {
+    final cid = await AuthService.instance.currentChurchId();
+    if (cid == null) return null;
+    return _db.collection('churches').doc(cid).collection('readings');
+  }
 
   List<Reading> _parse(String date, Map<String, dynamic> d) {
     final items = (d['items'] as List?) ?? const [];
@@ -38,14 +44,17 @@ class ReadingRepository {
       };
 
   Future<List<Reading>> forDate(DateTime day) async {
-    final doc = await _col.doc(dateKey(day)).get();
+    final col = await _col();
+    if (col == null) return const [];
+    final doc = await col.doc(dateKey(day)).get();
     if (!doc.exists) return const [];
     return _parse(doc.id, doc.data()!);
   }
 
   Future<List<Reading>> all() async {
-    final q =
-        await _col.orderBy(FieldPath.documentId, descending: true).get();
+    final col = await _col();
+    if (col == null) return const [];
+    final q = await col.orderBy(FieldPath.documentId, descending: true).get();
     final list = <Reading>[];
     for (final doc in q.docs) {
       list.addAll(_parse(doc.id, doc.data()));
@@ -53,26 +62,28 @@ class ReadingRepository {
     return list;
   }
 
-  /// Заменить чтения дня целиком (используется импортом).
   Future<void> setDateItems(String date, List<Reading> items) async {
-    await _col.doc(date).set({'items': items.map(_toItem).toList()});
+    final col = await _col();
+    if (col == null) return;
+    await col.doc(date).set({'items': items.map(_toItem).toList()});
   }
 
-  /// Добавить одно чтение к дню (ручное добавление).
   Future<void> addPortion(String date, Reading r) async {
     final existing = await forDate(DateTime.parse(date));
     await setDateItems(date, [...existing, r]);
   }
 
   Future<void> deleteDate(String date) async {
-    await _col.doc(date).delete();
+    final col = await _col();
+    if (col == null) return;
+    await col.doc(date).delete();
   }
 
   Future<void> removePortion(String date, int orderIndex) async {
     final items = await forDate(DateTime.parse(date));
     items.removeWhere((r) => r.orderIndex == orderIndex);
     if (items.isEmpty) {
-      await _col.doc(date).delete();
+      await deleteDate(date);
     } else {
       await setDateItems(date, items);
     }

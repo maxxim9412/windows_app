@@ -23,7 +23,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
   List<_ReadingBlock> _blocks = const [];
   bool _done = false;
   bool _loading = true;
-  bool _isAdmin = false;
+  bool _canEdit = false;
 
   @override
   void initState() {
@@ -33,7 +33,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    _isAdmin = await AuthService.instance.isAdmin();
+    _canEdit = await AuthService.instance.isChurchAdmin();
     final readings = await ReadingRepository.instance.forDate(_today);
     final done = await ReadingRepository.instance.isDone(_today);
 
@@ -67,7 +67,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       appBar: AppBar(
         title: const Text('Ежедневное чтение'),
         actions: [
-          if (_isAdmin)
+          if (_canEdit)
             IconButton(
               tooltip: 'График на месяц',
               icon: const Icon(Icons.edit_calendar_outlined),

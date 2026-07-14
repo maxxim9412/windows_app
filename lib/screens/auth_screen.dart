@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../data/church_repository.dart';
+import '../models/church.dart';
 import '../services/auth_service.dart';
 
 /// Вход и регистрация по email + паролю.
@@ -19,6 +21,22 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isRegister = false;
   bool _busy = false;
   String? _error;
+
+  List<Church> _churches = const [];
+  String? _churchId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChurches();
+  }
+
+  Future<void> _loadChurches() async {
+    try {
+      final list = await ChurchRepository.instance.allChurches();
+      if (mounted) setState(() => _churches = list);
+    } catch (_) {}
+  }
 
   @override
   void dispose() {
@@ -40,6 +58,7 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
           name: _nameCtrl.text,
+          churchId: _churchId,
         );
       } else {
         await AuthService.instance.signIn(
@@ -122,6 +141,26 @@ class _AuthScreenState extends State<AuthScreen> {
                           validator: (v) => (v == null || v.trim().isEmpty)
                               ? 'Введите имя'
                               : null,
+                        ),
+                      ),
+                    if (_isRegister)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: DropdownButtonFormField<String>(
+                          initialValue: _churchId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Церковь',
+                            prefixIcon: Icon(Icons.church_outlined),
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            const DropdownMenuItem(
+                                value: null, child: Text('Не выбрано')),
+                            for (final c in _churches)
+                              DropdownMenuItem(value: c.id, child: Text(c.name)),
+                          ],
+                          onChanged: (v) => setState(() => _churchId = v),
                         ),
                       ),
                     TextFormField(

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../data/church_repository.dart';
+import '../models/church.dart';
 import '../services/auth_service.dart';
 import '../services/triad_service.dart';
+import 'church_management_screen.dart';
 import 'triad_view.dart';
 
-/// Раздел «Тройка»: профиль пользователя и (далее) управление тройкой.
+/// Раздел «Тройка»: профиль, церковь и управление тройкой.
 class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
 
@@ -13,16 +16,37 @@ class AccountScreen extends StatefulWidget {
 }
 
 class _AccountScreenState extends State<AccountScreen> {
-  late Future<Map<String, dynamic>?> _profile;
+  Map<String, dynamic>? _profile;
+  List<Church> _churches = const [];
+  String? _churchId;
+  bool _isSuperAdmin = false;
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _profile = AuthService.instance.profile();
+    _load();
   }
 
-  void _reload() {
-    setState(() => _profile = AuthService.instance.profile());
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final profile = await AuthService.instance.profile();
+    final churches = await ChurchRepository.instance.allChurches();
+    final isSuper = await AuthService.instance.isAdmin();
+    if (!mounted) return;
+    setState(() {
+      _profile = profile;
+      _churches = churches;
+      _churchId = profile?['churchId'] as String?;
+      _isSuperAdmin = isSuper;
+      _loading = false;
+    });
+  }
+
+  String get _churchName {
+    if (_churchId == null) return 'Не выбрана';
+    final match = _churches.where((c) => c.id == _churchId);
+    return match.isEmpty ? '—' : match.first.name;
   }
 
   Future<void> _editName(String current) async {
@@ -53,7 +77,49 @@ class _AccountScreenState extends State<AccountScreen> {
     );
     if (name != null && name.isNotEmpty) {
       await AuthService.instance.updateName(name);
-      _reload();
+      _load();
+    }
+  }
+
+  Future<void> _changeChurch() async {
+    var selected = _churchId;
+    final result = await showDialog<String?>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setInner) => AlertDialog(
+          title: const Text('Ваша церковь'),
+          content: DropdownButtonFormField<String>(
+            initialValue: selected,
+            isExpanded: true,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('Не выбрана')),
+              for (final c in _churches)
+                DropdownMenuItem(value: c.id, child: Text(c.name)),
+            ],
+            onChanged: (v) => setInner(() => selected = v),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Отмена')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, selected),
+                child: const Text('Сохранить')),
+          ],
+        ),
+      ),
+    );
+    // null-результат допустим (пользователь мог выбрать «Не выбрана»),
+    // поэтому отличаем отмену по флагу.
+    if (result != _churchId) {
+      await AuthService.instance.setChurch(result);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text(
+                'Церковь изменена. Перезапустите приложение, чтобы обновить график.')));
+      }
+      _load();
     }
   }
 
@@ -62,57 +128,84 @@ class _AccountScreenState extends State<AccountScreen> {
     final theme = Theme.of(context);
     final user = AuthService.instance.currentUser;
 
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Тройка')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final name = (_profile?['name'] as String?)?.trim();
+    final displayName = (name != null && name.isNotEmpty) ? name : 'Без имени';
+    final email = user?.email ?? (_profile?['email'] as String?) ?? '';
+
     return Scaffold(
       appBar: AppBar(title: const Text('Тройка')),
-      body: FutureBuilder<Map<String, dynamic>?>(
-        future: _profile,
-        builder: (context, snapshot) {
-          final name = (snapshot.data?['name'] as String?)?.trim();
-          final displayName =
-              (name != null && name.isNotEmpty) ? name : 'Без имени';
-          final email = user?.email ?? (snapshot.data?['email'] as String?) ?? '';
-
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              Card(
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: theme.colorScheme.primary,
-                    child: Text(
-                      displayName != 'Без имени'
-                          ? displayName.characters.first.toUpperCase()
-                          : '?',
-                      style: TextStyle(color: theme.colorScheme.onPrimary),
-                    ),
-                  ),
-                  title: Text(displayName),
-                  subtitle: Text(email),
-                  trailing: IconButton(
-                    tooltip: 'Изменить имя',
-                    icon: const Icon(Icons.edit_outlined),
-                    onPressed: () => _editName(name ?? ''),
-                  ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Card(
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: theme.colorScheme.primary,
+                child: Text(
+                  displayName != 'Без имени'
+                      ? displayName.characters.first.toUpperCase()
+                      : '?',
+                  style: TextStyle(color: theme.colorScheme.onPrimary),
                 ),
               ),
-              const SizedBox(height: 16),
-              const TriadView(),
-              const SizedBox(height: 24),
-              const Divider(),
-              const SizedBox(height: 8),
-              OutlinedButton.icon(
-                onPressed: () {
-                  TriadService.instance.reset();
-                  AuthService.instance.signOut();
-                },
-                icon: const Icon(Icons.logout),
-                label: const Text('Выйти из аккаунта'),
-                style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52)),
+              title: Text(displayName),
+              subtitle: Text(email),
+              trailing: IconButton(
+                tooltip: 'Изменить имя',
+                icon: const Icon(Icons.edit_outlined),
+                onPressed: () => _editName(name ?? ''),
               ),
-            ],
-          );
-        },
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.church_outlined),
+              title: const Text('Церковь'),
+              subtitle: Text(_churchName),
+              trailing: TextButton(
+                  onPressed: _changeChurch, child: const Text('Изменить')),
+            ),
+          ),
+          if (_isSuperAdmin)
+            Card(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: ListTile(
+                leading: const Icon(Icons.admin_panel_settings_outlined),
+                title: const Text('Управление церквями'),
+                subtitle: const Text('Добавить/удалить церкви и их админов'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => const ChurchManagementScreen()));
+                  _load();
+                },
+              ),
+            ),
+          const SizedBox(height: 16),
+          const TriadView(),
+          const SizedBox(height: 24),
+          const Divider(),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () {
+              TriadService.instance.reset();
+              AuthService.instance.signOut();
+            },
+            icon: const Icon(Icons.logout),
+            label: const Text('Выйти из аккаунта'),
+            style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52)),
+          ),
+        ],
       ),
     );
   }

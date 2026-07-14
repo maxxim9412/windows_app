@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../services/auth_service.dart';
 import '../utils/bible_books.dart';
 import '../utils/date_helpers.dart';
 import '../utils/reference_parser.dart';
@@ -88,10 +89,19 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
   // --- Применение ---------------------------------------------------------
 
   Future<void> _apply() async {
+    final churchId = await AuthService.instance.currentChurchId();
+    if (churchId == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Не выбрана церковь — график привязан к церкви.')));
+      }
+      return;
+    }
     setState(() => _saving = true);
     final db = FirebaseFirestore.instance;
-    final passages = db.collection('passages');
-    final readings = db.collection('readings');
+    final church = db.collection('churches').doc(churchId);
+    final passages = church.collection('passages');
+    final readings = church.collection('readings');
     final batch = db.batch();
 
     // 1) Полностью очищаем месяц.
