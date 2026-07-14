@@ -5,7 +5,7 @@ import '../data/reading_repository.dart';
 import '../models/reading.dart';
 import '../services/auth_service.dart';
 import '../utils/date_helpers.dart';
-import 'reading_admin_screen.dart';
+import 'monthly_schedule_screen.dart';
 
 typedef _ChapterText = ({int chapter, List<({int verse, String text})> verses});
 typedef _ReadingBlock = ({Reading reading, List<_ChapterText> chapters});
@@ -69,12 +69,13 @@ class _ReadingScreenState extends State<ReadingScreen> {
         actions: [
           if (_isAdmin)
             IconButton(
-              tooltip: 'План чтения',
+              tooltip: 'График на месяц',
               icon: const Icon(Icons.edit_calendar_outlined),
               onPressed: () async {
-                await Navigator.push(context,
+                await Navigator.push(
+                    context,
                     MaterialPageRoute(
-                        builder: (_) => const ReadingAdminScreen()));
+                        builder: (_) => const MonthlyScheduleScreen()));
                 _load();
               },
             ),

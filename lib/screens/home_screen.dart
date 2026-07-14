@@ -9,7 +9,7 @@ import '../models/passage.dart';
 import '../services/auth_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
-import 'admin_screen.dart';
+import 'monthly_schedule_screen.dart';
 import 'notes_list_screen.dart';
 import 'settings_screen.dart';
 
@@ -103,11 +103,13 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           if (_isAdmin)
             IconButton(
-              tooltip: 'Расписание отрывков',
+              tooltip: 'График на месяц',
               icon: const Icon(Icons.edit_calendar_outlined),
               onPressed: () async {
-                await Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const AdminScreen()));
+                await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const MonthlyScheduleScreen()));
                 _load();
               },
             ),
