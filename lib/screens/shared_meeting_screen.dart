@@ -7,6 +7,7 @@ import '../agora_config.dart';
 import '../data/notes_repository.dart';
 import '../models/note.dart';
 import '../models/triad.dart';
+import '../services/auth_service.dart';
 import '../services/triad_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
@@ -16,7 +17,9 @@ import '../utils/note_questions.dart';
 /// может показать свою или переключить на чужую.
 class SharedMeetingScreen extends StatefulWidget {
   final Triad triad;
-  const SharedMeetingScreen({super.key, required this.triad});
+  final bool autoJoin;
+  const SharedMeetingScreen(
+      {super.key, required this.triad, this.autoJoin = false});
 
   @override
   State<SharedMeetingScreen> createState() => _SharedMeetingScreenState();
@@ -29,9 +32,18 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
   bool _inCall = false;
   bool _joining = false;
   bool _muted = false;
+  bool _hadRemote = false;
   final Set<int> _remoteUids = {};
 
   Triad get triad => widget.triad;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autoJoin) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _joinCall());
+    }
+  }
 
   @override
   void dispose() {
@@ -62,6 +74,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
       engine.registerEventHandler(RtcEngineEventHandler(
         onJoinChannelSuccess: (conn, elapsed) {
           debugPrint('[call] onJoinChannelSuccess channel=${conn.channelId}');
+          TriadService.instance.markCallActive(triad.id);
           if (mounted) {
             setState(() {
               _inCall = true;
@@ -71,10 +84,15 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
         },
         onUserJoined: (conn, remoteUid, elapsed) {
           debugPrint('[call] onUserJoined $remoteUid');
+          _hadRemote = true;
           if (mounted) setState(() => _remoteUids.add(remoteUid));
         },
         onUserOffline: (conn, remoteUid, reason) {
           if (mounted) setState(() => _remoteUids.remove(remoteUid));
+          // Если все остальные вышли (а раньше были) — завершаем и у себя.
+          if (_hadRemote && _remoteUids.isEmpty) {
+            _leaveCall();
+          }
         },
         onError: (err, msg) {
           debugPrint('[call] onError $err $msg');
@@ -126,9 +144,14 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
   }
 
   Future<void> _leaveCall() async {
+    // Если остальных уже нет — звонок завершён для всех.
+    if (_remoteUids.isEmpty) {
+      TriadService.instance.endCall(triad.id);
+    }
     await _engine?.leaveChannel();
     await _engine?.release();
     _engine = null;
+    _hadRemote = false;
     if (mounted) {
       setState(() {
         _inCall = false;
@@ -175,6 +198,8 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           _callCard(theme),
+          const SizedBox(height: 16),
+          _scheduleSection(theme),
           const Divider(height: 32),
 
           Row(
@@ -252,6 +277,158 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
         ),
       ),
     );
+  }
+
+  static const _dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+  String _daysLabel(List<int> days) {
+    final sorted = [...days]..sort();
+    return sorted.map((d) => _dayNames[(d - 1).clamp(0, 6)]).join(', ');
+  }
+
+  String _time(int h, int m) =>
+      '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+
+  Widget _scheduleSection(ThemeData theme) {
+    final myUid = AuthService.instance.uid;
+    return StreamBuilder<Triad?>(
+      stream: TriadService.instance.triadStream(triad.id),
+      builder: (context, snap) {
+        final t = snap.data ?? triad;
+        final s = t.callSchedule;
+        final p = t.scheduleProposal;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Расписание звонков',
+                      style: theme.textTheme.titleSmall),
+                ),
+                TextButton(
+                    onPressed: () => _editSchedule(t),
+                    child: const Text('Изменить')),
+              ],
+            ),
+            Text(
+              s == null
+                  ? 'Не задано — звук входящего не сработает.'
+                  : '${_daysLabel(s.days)} в ${_time(s.hour, s.minute)}',
+              style: theme.textTheme.bodyMedium,
+            ),
+            if (p != null) _proposalCard(theme, t, p, myUid),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _proposalCard(
+      ThemeData theme, Triad t, ScheduleProposal p, String? myUid) {
+    final approved = myUid != null && p.approvals.contains(myUid);
+    final isProposer = p.by == myUid;
+    return Card(
+      color: theme.colorScheme.tertiaryContainer,
+      margin: const EdgeInsets.only(top: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+                'Предложено: ${_daysLabel(p.days)} в ${_time(p.hour, p.minute)}',
+                style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text('Одобрений: ${p.approvals.length}/${t.memberCount}',
+                style: theme.textTheme.bodySmall),
+            const SizedBox(height: 8),
+            if (isProposer)
+              OutlinedButton(
+                  onPressed: () =>
+                      TriadService.instance.cancelScheduleProposal(t.id),
+                  child: const Text('Отменить предложение'))
+            else if (approved)
+              const Text('Вы одобрили. Ждём остальных.')
+            else
+              Row(children: [
+                FilledButton(
+                    onPressed: () =>
+                        TriadService.instance.approveSchedule(t.id),
+                    child: const Text('Одобрить')),
+                const SizedBox(width: 8),
+                TextButton(
+                    onPressed: () =>
+                        TriadService.instance.cancelScheduleProposal(t.id),
+                    child: const Text('Отклонить')),
+              ]),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _editSchedule(Triad t) async {
+    final selected = <int>{...?t.callSchedule?.days};
+    var time = TimeOfDay(
+        hour: t.callSchedule?.hour ?? 20, minute: t.callSchedule?.minute ?? 0);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (context, setInner) => AlertDialog(
+          title: const Text('Расписание звонков'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (var d = 1; d <= 7; d++)
+                    FilterChip(
+                      label: Text(_dayNames[d - 1]),
+                      selected: selected.contains(d),
+                      onSelected: (v) => setInner(
+                          () => v ? selected.add(d) : selected.remove(d)),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Время'),
+                  TextButton(
+                    onPressed: () async {
+                      final picked = await showTimePicker(
+                          context: context, initialTime: time);
+                      if (picked != null) setInner(() => time = picked);
+                    },
+                    child: Text(_time(time.hour, time.minute)),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Отмена')),
+            FilledButton(
+                onPressed:
+                    selected.isEmpty ? null : () => Navigator.pop(context, true),
+                child: const Text('Предложить')),
+          ],
+        ),
+      ),
+    );
+    if (ok == true) {
+      await TriadService.instance.proposeSchedule(
+          t.id, selected.toList()..sort(), time.hour, time.minute);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content:
+                Text('Предложение отправлено. Нужно одобрение остальных.')));
+      }
+    }
   }
 
   Widget _presenterChips(ThemeData theme) {

@@ -26,6 +26,7 @@ dependencies:
   agora_rtc_engine: 6.5.4
   permission_handler: ^11.3.0
   agora_token_service: ^0.1.2
+  audioplayers: ^6.1.0
 
   # Локальная база (заметки + расписание отрывков)
   sqflite: ^2.3.3
@@ -60,3 +61,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/bible/
+    - assets/sounds/

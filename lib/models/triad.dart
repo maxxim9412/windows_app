@@ -22,6 +22,44 @@ class JoinRequest {
       required this.approvals});
 }
 
+/// Расписание звонков тройки (дни недели + время).
+class CallSchedule {
+  final List<int> days; // 1=Пн ... 7=Вс
+  final int hour;
+  final int minute;
+  const CallSchedule(
+      {required this.days, required this.hour, required this.minute});
+
+  Map<String, dynamic> toMap() => {'days': days, 'hour': hour, 'minute': minute};
+
+  static CallSchedule? fromMap(Map<String, dynamic>? m) {
+    if (m == null) return null;
+    return CallSchedule(
+      days: List<int>.from(m['days'] as List? ?? const []),
+      hour: (m['hour'] as num?)?.toInt() ?? 0,
+      minute: (m['minute'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+/// Предложение изменить расписание (нужно одобрение остальных участников).
+class ScheduleProposal {
+  final List<int> days;
+  final int hour;
+  final int minute;
+  final String by;
+  final List<String> approvals;
+  const ScheduleProposal({
+    required this.days,
+    required this.hour,
+    required this.minute,
+    required this.by,
+    required this.approvals,
+  });
+  CallSchedule get schedule =>
+      CallSchedule(days: days, hour: hour, minute: minute);
+}
+
 /// Запрос на удаление участника (нужно одобрение оставшегося).
 class RemovalRequest {
   final String targetUid;
@@ -44,6 +82,8 @@ class Triad {
   final String inviteCode;
   final List<JoinRequest> joinRequests;
   final List<RemovalRequest> removalRequests;
+  final CallSchedule? callSchedule;
+  final ScheduleProposal? scheduleProposal;
 
   const Triad({
     required this.id,
@@ -53,6 +93,8 @@ class Triad {
     required this.inviteCode,
     required this.joinRequests,
     required this.removalRequests,
+    this.callSchedule,
+    this.scheduleProposal,
   });
 
   int get memberCount => memberUids.length;
@@ -94,6 +136,18 @@ class Triad {
       ));
     });
 
+    final proposalMap = d['scheduleProposal'] as Map<String, dynamic>?;
+    final proposal = proposalMap == null
+        ? null
+        : ScheduleProposal(
+            days: List<int>.from(proposalMap['days'] as List? ?? const []),
+            hour: (proposalMap['hour'] as num?)?.toInt() ?? 0,
+            minute: (proposalMap['minute'] as num?)?.toInt() ?? 0,
+            by: (proposalMap['by'] as String?) ?? '',
+            approvals:
+                List<String>.from(proposalMap['approvals'] as List? ?? const []),
+          );
+
     return Triad(
       id: doc.id,
       createdBy: (d['createdBy'] as String?) ?? '',
@@ -102,6 +156,9 @@ class Triad {
       inviteCode: (d['inviteCode'] as String?) ?? '',
       joinRequests: joinRequests,
       removalRequests: removalRequests,
+      callSchedule:
+          CallSchedule.fromMap(d['callSchedule'] as Map<String, dynamic>?),
+      scheduleProposal: proposal,
     );
   }
 }

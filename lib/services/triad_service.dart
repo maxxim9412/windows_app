@@ -337,6 +337,97 @@ class TriadService {
     reset();
   }
 
+  // --- Расписание звонков (изменения — по согласию участников) ------------
+
+  Future<void> proposeSchedule(
+      String triadId, List<int> days, int hour, int minute) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _db.collection('triads').doc(triadId).update({
+      'scheduleProposal': {
+        'days': days,
+        'hour': hour,
+        'minute': minute,
+        'by': uid,
+        'approvals': [uid],
+      },
+    });
+  }
+
+  Future<void> approveSchedule(String triadId) async {
+    final uid = _uid;
+    if (uid == null) return;
+    final ref = _db.collection('triads').doc(triadId);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final data = snap.data()!;
+      final members = List<String>.from(data['memberUids'] as List? ?? const []);
+      final p = data['scheduleProposal'] as Map<String, dynamic>?;
+      if (p == null) return;
+      final approvals = List<String>.from(p['approvals'] as List? ?? const []);
+      if (!approvals.contains(uid)) approvals.add(uid);
+
+      if (members.every(approvals.contains)) {
+        tx.update(ref, {
+          'callSchedule': {
+            'days': p['days'],
+            'hour': p['hour'],
+            'minute': p['minute'],
+          },
+          'scheduleProposal': FieldValue.delete(),
+        });
+      } else {
+        tx.update(ref, {'scheduleProposal.approvals': approvals});
+      }
+    });
+  }
+
+  Future<void> cancelScheduleProposal(String triadId) async {
+    await _db.collection('triads').doc(triadId).update({
+      'scheduleProposal': FieldValue.delete(),
+    });
+  }
+
+  // --- Состояние активного звонка -----------------------------------------
+
+  DocumentReference<Map<String, dynamic>> _callRef(String triadId) =>
+      _db.collection('triads').doc(triadId).collection('shared').doc('call');
+
+  Stream<Map<String, dynamic>?> callStateStream(String triadId) =>
+      _callRef(triadId).snapshots().map((d) => d.exists ? d.data() : null);
+
+  /// Отметить, что звонок идёт (я вошёл). Если ещё не активен — я «начинающий».
+  Future<void> markCallActive(String triadId) async {
+    final uid = _uid;
+    if (uid == null) return;
+    final ref = _callRef(triadId);
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final active = (snap.data()?['active'] as bool?) ?? false;
+      if (!active) {
+        tx.set(ref, {
+          'active': true,
+          'startedBy': uid,
+          'startedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    });
+  }
+
+  Future<void> endCall(String triadId) async {
+    await _callRef(triadId).set({'active': false}, SetOptions(merge: true));
+  }
+
+  /// Идёт ли сейчас «время звонка» по расписанию (для звука входящего).
+  static bool isWithinSchedule(CallSchedule? s, DateTime now) {
+    if (s == null || s.days.isEmpty) return false;
+    if (!s.days.contains(now.weekday)) return false;
+    final scheduled =
+        DateTime(now.year, now.month, now.day, s.hour, s.minute);
+    final diffMin = now.difference(scheduled).inMinutes;
+    return diffMin >= -5 && diffMin <= 60;
+  }
+
   static String _genCode() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // без похожих 0/O/1/I
     final r = Random.secure();
