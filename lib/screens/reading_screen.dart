@@ -41,7 +41,12 @@ class _ReadingScreenState extends State<ReadingScreen> {
     for (final r in readings) {
       final chapters = <_ChapterText>[];
       for (final ch in r.chapters) {
-        final verses = await BibleRepository.instance.chapterVerses(r.bookCode, ch);
+        var verses = await BibleRepository.instance.chapterVerses(r.bookCode, ch);
+        if (r.hasVerses) {
+          verses = verses
+              .where((v) => v.verse >= r.verseStart! && v.verse <= r.verseEnd!)
+              .toList();
+        }
         chapters.add((chapter: ch, verses: verses));
       }
       blocks.add((reading: r, chapters: chapters));

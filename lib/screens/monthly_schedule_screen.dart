@@ -135,6 +135,8 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
             'book_code': p.ref!.bookCode,
             'chapter_start': p.ref!.chapterStart,
             'chapter_end': p.ref!.chapterEnd,
+            if (p.ref!.verseStart != null) 'verse_start': p.ref!.verseStart,
+            if (p.ref!.verseEnd != null) 'verse_end': p.ref!.verseEnd,
           }
       ];
       batch.set(readings.doc(dateKey(rd[i])), {'items': items});
@@ -286,6 +288,12 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
           .where((p) => p.ok)
           .map((p) {
             final r = p.ref!;
+            if (r.verseStart != null) {
+              final vs = r.verseStart == r.verseEnd
+                  ? '${r.verseStart}'
+                  : '${r.verseStart}–${r.verseEnd}';
+              return '${bookName(r.bookCode)} ${r.chapterStart}:$vs';
+            }
             final ch = r.chapterStart == r.chapterEnd
                 ? '${r.chapterStart}'
                 : '${r.chapterStart}–${r.chapterEnd}';

@@ -63,12 +63,15 @@ List<ParseLineResult> parseReferenceList(String text) {
 
 // --- Разбор глав (для плана чтения) -------------------------------------
 
-/// Разобранный диапазон глав (без стихов).
+/// Разобранный диапазон глав; опционально — диапазон стихов внутри одной главы.
 class ParsedChapters {
   final String bookCode;
   final int chapterStart;
   final int chapterEnd;
-  const ParsedChapters(this.bookCode, this.chapterStart, this.chapterEnd);
+  final int? verseStart; // если задан — читаем не всю главу, а стихи
+  final int? verseEnd;
+  const ParsedChapters(this.bookCode, this.chapterStart, this.chapterEnd,
+      {this.verseStart, this.verseEnd});
 }
 
 class ParseChapterResult {
@@ -88,10 +91,20 @@ ParseChapterResult parseChapterLine(String raw) {
   final line = raw.trim();
   if (line.isEmpty) return ParseChapterResult(raw, error: 'пустая строка');
 
+  // Форма со стихами: «Пс.118:1-88» — одна глава, диапазон стихов.
+  final vr = parseReferenceLine(line);
+  if (vr.ok) {
+    final r = vr.ref!;
+    return ParseChapterResult(raw,
+        ref: ParsedChapters(r.bookCode, r.chapter, r.chapter,
+            verseStart: r.verseStart, verseEnd: r.verseEnd));
+  }
+
   final m = _reChapters.firstMatch(line);
   if (m == null) {
     return ParseChapterResult(raw,
-        error: 'не распознан формат (нужно, напр., «Быт 1-3» или «Мф 5»)');
+        error: 'не распознан формат (нужно, напр., «Быт 1-3», «Мф 5» '
+            'или «Пс 118:1-88»)');
   }
 
   final code = bookCodeFromAbbrev(m.group(1)!);

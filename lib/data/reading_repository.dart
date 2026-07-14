@@ -31,6 +31,8 @@ class ReadingRepository {
         bookCode: m['book_code'] as String,
         chapterStart: (m['chapter_start'] as num).toInt(),
         chapterEnd: (m['chapter_end'] as num).toInt(),
+        verseStart: (m['verse_start'] as num?)?.toInt(),
+        verseEnd: (m['verse_end'] as num?)?.toInt(),
         orderIndex: i,
       ));
     }
@@ -41,6 +43,8 @@ class ReadingRepository {
         'book_code': r.bookCode,
         'chapter_start': r.chapterStart,
         'chapter_end': r.chapterEnd,
+        if (r.verseStart != null) 'verse_start': r.verseStart,
+        if (r.verseEnd != null) 'verse_end': r.verseEnd,
       };
 
   Future<List<Reading>> forDate(DateTime day) async {

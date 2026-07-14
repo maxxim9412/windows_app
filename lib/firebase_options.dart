@@ -54,7 +54,7 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyCAuBhLMSt-TDap-oLlWcgbKbUDvBv1O3E',
-    appId: '1:96467453228:android:cdec11ad6ddaa81a591889',
+    appId: '1:96467453228:android:f9e39320e2bef3e2591889',
     messagingSenderId: '96467453228',
     projectId: 'bible-reflection',
     databaseURL: 'https://bible-reflection-default-rtdb.europe-west1.firebasedatabase.app',
