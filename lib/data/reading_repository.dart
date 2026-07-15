@@ -1,11 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:sqflite/sqflite.dart' show ConflictAlgorithm;
 
 import '../models/reading.dart';
 import '../services/auth_service.dart';
 import '../utils/date_helpers.dart';
-import 'db.dart';
 
 /// План чтения конкретной церкви (Firestore:
 /// `churches/{churchId}/readings/{date}`, поле `items`). Ведёт админ церкви.
@@ -97,59 +94,35 @@ class ReadingRepository {
   }
 
   // --- Отметки о прочтении (личные) -------------------------------------
-  // Мобильные: локальная SQLite (`reading_done`). Веб: браузерная SQLite
-  // ненадёжна, поэтому храним отметки в карте `readingDone` профиля
-  // пользователя (`users/{uid}`) — правила Firestore уже разрешают владельцу
-  // писать свой документ, отдельного правила не нужно.
+  // Храним в карте `readingDone` профиля пользователя (`users/{uid}`) —
+  // одинаково на телефоне и в вебе, поэтому прогресс общий на всех устройствах.
+  // Отдельного правила Firestore не нужно: владелец и так пишет свой документ.
+  // Раньше на мобильных это была локальная SQLite, и отметки не покидали телефон.
+
+  Future<Map<String, dynamic>> _doneMap() async {
+    final uid = AuthService.instance.uid;
+    if (uid == null) return const {};
+    final doc = await _db.collection('users').doc(uid).get();
+    return (doc.data()?['readingDone'] as Map<String, dynamic>?) ?? const {};
+  }
 
   Future<bool> isDone(DateTime day) async {
-    if (kIsWeb) {
-      final uid = AuthService.instance.uid;
-      if (uid == null) return false;
-      final doc = await _db.collection('users').doc(uid).get();
-      final map = doc.data()?['readingDone'] as Map<String, dynamic>?;
-      return map?[dateKey(day)] == true;
-    }
-    final db = await AppDatabase.instance.database;
-    final rows = await db.query('reading_done',
-        where: 'date = ?', whereArgs: [dateKey(day)], limit: 1);
-    if (rows.isEmpty) return false;
-    return (rows.first['done'] as int) == 1;
+    final map = await _doneMap();
+    return map[dateKey(day)] == true;
   }
 
   /// Все даты (yyyy-MM-dd), отмеченные как прочитанные — для календаря прогресса.
   Future<Set<String>> doneDates() async {
-    if (kIsWeb) {
-      final uid = AuthService.instance.uid;
-      if (uid == null) return {};
-      final doc = await _db.collection('users').doc(uid).get();
-      final map = doc.data()?['readingDone'] as Map<String, dynamic>?;
-      if (map == null) return {};
-      return map.entries
-          .where((e) => e.value == true)
-          .map((e) => e.key)
-          .toSet();
-    }
-    final db = await AppDatabase.instance.database;
-    final rows = await db.query('reading_done', where: 'done = 1');
-    return rows.map((r) => r['date'] as String).toSet();
+    final map = await _doneMap();
+    return map.entries.where((e) => e.value == true).map((e) => e.key).toSet();
   }
 
   Future<void> setDone(DateTime day, bool done) async {
-    if (kIsWeb) {
-      final uid = AuthService.instance.uid;
-      if (uid == null) return;
-      // merge:true объединяет ключи вложенной карты, не затирая другие даты.
-      await _db.collection('users').doc(uid).set({
-        'readingDone': {dateKey(day): done},
-      }, SetOptions(merge: true));
-      return;
-    }
-    final db = await AppDatabase.instance.database;
-    await db.insert(
-      'reading_done',
-      {'date': dateKey(day), 'done': done ? 1 : 0},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    final uid = AuthService.instance.uid;
+    if (uid == null) return;
+    // merge:true объединяет ключи вложенной карты, не затирая другие даты.
+    await _db.collection('users').doc(uid).set({
+      'readingDone': {dateKey(day): done},
+    }, SetOptions(merge: true));
   }
 }
