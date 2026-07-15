@@ -1,1 +1,30 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"bible-reflection","appId":"1:96467453228:android:f9e39320e2bef3e2591889","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"bible-reflection","configurations":{"android":"1:96467453228:android:f9e39320e2bef3e2591889","web":"1:96467453228:web:70cdf51cda13cfc7591889"}}}}},"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "bible-reflection",
+          "appId": "1:96467453228:android:f9e39320e2bef3e2591889",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "bible-reflection",
+          "configurations": {
+            "android": "1:96467453228:android:f9e39320e2bef3e2591889",
+            "web": "1:96467453228:web:70cdf51cda13cfc7591889"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+  }
+}
