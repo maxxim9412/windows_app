@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../data/bible_repository.dart';
+import '../data/progress_repository.dart';
 import '../data/reading_repository.dart';
 import '../models/reading.dart';
 import '../services/auth_service.dart';
+import '../services/selected_day.dart';
 import '../utils/date_helpers.dart';
+import '../widgets/catch_up_banner.dart';
+import '../widgets/progress_calendar_button.dart';
 import 'monthly_schedule_screen.dart';
 
 typedef _ChapterText = ({int chapter, List<({int verse, String text})> verses});
@@ -18,24 +22,40 @@ class ReadingScreen extends StatefulWidget {
 }
 
 class _ReadingScreenState extends State<ReadingScreen> {
-  final _today = dateOnly(DateTime.now());
+  /// Открытый день — общий с экраном QT (см. [SelectedDay]).
+  DateTime _day = SelectedDay.instance.value;
 
   List<_ReadingBlock> _blocks = const [];
   bool _done = false;
   bool _loading = true;
   bool _canEdit = false;
 
+  bool get _isToday => _day == SelectedDay.today;
+
   @override
   void initState() {
     super.initState();
+    SelectedDay.instance.addListener(_onDayChanged);
+    _load();
+  }
+
+  @override
+  void dispose() {
+    SelectedDay.instance.removeListener(_onDayChanged);
+    super.dispose();
+  }
+
+  void _onDayChanged() {
+    if (!mounted) return;
+    setState(() => _day = SelectedDay.instance.value);
     _load();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     _canEdit = await AuthService.instance.isChurchAdmin();
-    final readings = await ReadingRepository.instance.forDate(_today);
-    final done = await ReadingRepository.instance.isDone(_today);
+    final readings = await ReadingRepository.instance.forDate(_day);
+    final done = await ReadingRepository.instance.isDone(_day);
 
     final blocks = <_ReadingBlock>[];
     for (final r in readings) {
@@ -62,7 +82,8 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   Future<void> _toggleDone(bool value) async {
     setState(() => _done = value);
-    await ReadingRepository.instance.setDone(_today, value);
+    await ReadingRepository.instance.setDone(_day, value);
+    ProgressRepository.instance.invalidate(); // обновить значок календаря
   }
 
   @override
@@ -72,6 +93,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
       appBar: AppBar(
         title: const Text('Ежедневное чтение'),
         actions: [
+          const ProgressCalendarButton(),
           if (_canEdit)
             IconButton(
               tooltip: 'График на месяц',
@@ -86,39 +108,46 @@ class _ReadingScreenState extends State<ReadingScreen> {
             ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text(humanDate(_today),
-                    style: theme.textTheme.titleMedium
-                        ?.copyWith(color: theme.colorScheme.primary)),
-                const SizedBox(height: 12),
-                if (_blocks.isEmpty)
-                  _emptyCard(theme)
-                else ...[
-                  if (_done)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        children: [
-                          Icon(Icons.check_circle,
-                              size: 18, color: theme.colorScheme.primary),
-                          const SizedBox(width: 6),
-                          Text('Прочитано',
-                              style: theme.textTheme.labelLarge
-                                  ?.copyWith(color: theme.colorScheme.primary)),
-                        ],
-                      ),
-                    ),
-                  ..._blocks.expand((b) => _buildBlock(theme, b)),
-                  const SizedBox(height: 8),
-                  _doneButton(theme),
-                ],
-                const SizedBox(height: 32),
-              ],
-            ),
+      body: Column(
+        children: [
+          if (!_isToday) CatchUpBanner(day: _day),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      Text(humanDate(_day),
+                          style: theme.textTheme.titleMedium
+                              ?.copyWith(color: theme.colorScheme.primary)),
+                      const SizedBox(height: 12),
+                      if (_blocks.isEmpty)
+                        _emptyCard(theme)
+                      else ...[
+                        if (_done)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                Icon(Icons.check_circle,
+                                    size: 18, color: theme.colorScheme.primary),
+                                const SizedBox(width: 6),
+                                Text('Прочитано',
+                                    style: theme.textTheme.labelLarge?.copyWith(
+                                        color: theme.colorScheme.primary)),
+                              ],
+                            ),
+                          ),
+                        ..._blocks.expand((b) => _buildBlock(theme, b)),
+                        const SizedBox(height: 8),
+                        _doneButton(theme),
+                      ],
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

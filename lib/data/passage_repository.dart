@@ -38,8 +38,13 @@ class PassageRepository {
   Future<List<Passage>> all() async {
     final col = await _col();
     if (col == null) return const [];
-    final q = await col.orderBy(FieldPath.documentId, descending: true).get();
-    return q.docs.map((doc) => _fromDoc(doc.id, doc.data())).toList();
+    // Сортируем на клиенте: id документа = дата (yyyy-MM-dd), т.е. лексикографи-
+    // ческий порядок совпадает с хронологическим. orderBy по documentId в вебе
+    // ненадёжен (см. NotesRepository.all), а отрывков — по одному на день.
+    final q = await col.get();
+    final list = q.docs.map((doc) => _fromDoc(doc.id, doc.data())).toList();
+    list.sort((a, b) => b.date.compareTo(a.date));
+    return list;
   }
 
   Future<void> upsert(Passage p) async {

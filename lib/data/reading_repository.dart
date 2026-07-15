@@ -59,9 +59,11 @@ class ReadingRepository {
   Future<List<Reading>> all() async {
     final col = await _col();
     if (col == null) return const [];
-    final q = await col.orderBy(FieldPath.documentId, descending: true).get();
+    // Сортировка на клиенте — см. пояснение в PassageRepository.all().
+    final q = await col.get();
+    final docs = q.docs.toList()..sort((a, b) => b.id.compareTo(a.id));
     final list = <Reading>[];
-    for (final doc in q.docs) {
+    for (final doc in docs) {
       list.addAll(_parse(doc.id, doc.data()));
     }
     return list;
@@ -113,6 +115,24 @@ class ReadingRepository {
         where: 'date = ?', whereArgs: [dateKey(day)], limit: 1);
     if (rows.isEmpty) return false;
     return (rows.first['done'] as int) == 1;
+  }
+
+  /// Все даты (yyyy-MM-dd), отмеченные как прочитанные — для календаря прогресса.
+  Future<Set<String>> doneDates() async {
+    if (kIsWeb) {
+      final uid = AuthService.instance.uid;
+      if (uid == null) return {};
+      final doc = await _db.collection('users').doc(uid).get();
+      final map = doc.data()?['readingDone'] as Map<String, dynamic>?;
+      if (map == null) return {};
+      return map.entries
+          .where((e) => e.value == true)
+          .map((e) => e.key)
+          .toSet();
+    }
+    final db = await AppDatabase.instance.database;
+    final rows = await db.query('reading_done', where: 'done = 1');
+    return rows.map((r) => r['date'] as String).toSet();
   }
 
   Future<void> setDone(DateTime day, bool done) async {

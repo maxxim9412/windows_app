@@ -5,10 +5,14 @@ import 'package:flutter/material.dart';
 import '../data/bible_repository.dart';
 import '../data/notes_repository.dart';
 import '../data/passage_repository.dart';
+import '../data/progress_repository.dart';
 import '../models/passage.dart';
 import '../services/auth_service.dart';
+import '../services/selected_day.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
+import '../widgets/catch_up_banner.dart';
+import '../widgets/progress_calendar_button.dart';
 import 'monthly_schedule_screen.dart';
 import 'notes_list_screen.dart';
 import 'settings_screen.dart';
@@ -23,7 +27,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final List<TextEditingController> _controllers =
       List.generate(kNoteFieldCount, (_) => TextEditingController());
-  final _today = dateOnly(DateTime.now());
+
+  /// Открытый день — общий с экраном «Чтение» (см. [SelectedDay]).
+  DateTime _day = SelectedDay.instance.value;
 
   Passage? _passage;
   List<({int verse, String text})> _verses = const [];
@@ -36,14 +42,18 @@ class _HomeScreenState extends State<HomeScreen> {
 
   bool get _hasText => _controllers.any((c) => c.text.trim().isNotEmpty);
 
+  bool get _isToday => _day == SelectedDay.today;
+
   @override
   void initState() {
     super.initState();
+    SelectedDay.instance.addListener(_onDayChanged);
     _load();
   }
 
   @override
   void dispose() {
+    SelectedDay.instance.removeListener(_onDayChanged);
     _debounce?.cancel();
     for (final c in _controllers) {
       c.dispose();
@@ -51,15 +61,26 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  /// Смена дня. Сначала дописываем незаписанные правки в СТАРЫЙ день: таймер
+  /// автосохранения иначе сработал бы уже после переключения и записал бы текст
+  /// в чужую дату.
+  Future<void> _onDayChanged() async {
+    _debounce?.cancel();
+    if (_dirty) await _saveNote();
+    if (!mounted) return;
+    setState(() => _day = SelectedDay.instance.value);
+    await _load();
+  }
+
   Future<void> _load() async {
     setState(() => _loading = true);
     final churchId = await AuthService.instance.currentChurchId();
     final canEdit = await AuthService.instance.isChurchAdmin();
-    final passage = await PassageRepository.instance.forDate(_today);
+    final passage = await PassageRepository.instance.forDate(_day);
     final verses = passage == null
         ? const <({int verse, String text})>[]
         : await BibleRepository.instance.versesFor(passage);
-    final note = await NotesRepository.instance.forDate(_today);
+    final note = await NotesRepository.instance.forDate(_day);
 
     if (!mounted) return;
     _hasChurch = churchId != null;
@@ -85,7 +106,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final answers = _controllers.map((c) => c.text).toList();
     if (mounted) setState(() => _saving = true);
     try {
-      await NotesRepository.instance.save(_today, answers);
+      await NotesRepository.instance.save(_day, answers);
+      ProgressRepository.instance.invalidate(); // обновить значок календаря
       if (mounted) setState(() => _dirty = false);
     } catch (e) {
       if (mounted) {
@@ -110,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('QT (Тихое время)'),
         actions: [
+          const ProgressCalendarButton(),
           IconButton(
             tooltip: 'Мои заметки',
             icon: const Icon(Icons.menu_book_outlined),
@@ -136,27 +159,35 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text(
-                  humanDate(_today),
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(color: theme.colorScheme.primary),
-                ),
-                const SizedBox(height: 12),
-                _buildPassageCard(theme),
-                const SizedBox(height: 24),
-                Text('Мои размышления', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 8),
-                ...List.generate(kNoteFieldCount, _buildQuestionTile),
-                const SizedBox(height: 12),
-                _buildSaveButton(),
-                const SizedBox(height: 32),
-              ],
-            ),
+      body: Column(
+        children: [
+          if (!_isToday) CatchUpBanner(day: _day),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      Text(
+                        humanDate(_day),
+                        style: theme.textTheme.titleMedium
+                            ?.copyWith(color: theme.colorScheme.primary),
+                      ),
+                      const SizedBox(height: 12),
+                      _buildPassageCard(theme),
+                      const SizedBox(height: 24),
+                      Text('Мои размышления',
+                          style: theme.textTheme.titleMedium),
+                      const SizedBox(height: 8),
+                      ...List.generate(kNoteFieldCount, _buildQuestionTile),
+                      const SizedBox(height: 12),
+                      _buildSaveButton(),
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
