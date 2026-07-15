@@ -28,10 +28,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Passage? _passage;
   List<({int verse, String text})> _verses = const [];
   bool _loading = true;
-  bool _justSaved = false;
+  bool _dirty = false; // есть правки, ещё не записанные в хранилище
+  bool _saving = false;
   bool _canEdit = false;
   bool _hasChurch = false;
   Timer? _debounce;
+
+  bool get _hasText => _controllers.any((c) => c.text.trim().isNotEmpty);
 
   @override
   void initState() {
@@ -68,27 +71,36 @@ class _HomeScreenState extends State<HomeScreen> {
       _passage = passage;
       _verses = verses;
       _loading = false;
+      _dirty = false;
     });
   }
 
   void _onAnyChanged() {
+    if (!_dirty) setState(() => _dirty = true);
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 600), _saveNote);
   }
 
   Future<void> _saveNote() async {
     final answers = _controllers.map((c) => c.text).toList();
-    await NotesRepository.instance.save(_today, answers);
+    if (mounted) setState(() => _saving = true);
+    try {
+      await NotesRepository.instance.save(_today, answers);
+      if (mounted) setState(() => _dirty = false);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Не удалось сохранить заметку: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _saveNow() async {
     _debounce?.cancel();
     await _saveNote();
-    if (!mounted) return;
-    setState(() => _justSaved = true);
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _justSaved = false);
-    });
   }
 
   @override
@@ -141,16 +153,34 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 8),
                 ...List.generate(kNoteFieldCount, _buildQuestionTile),
                 const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _saveNow,
-                  icon: Icon(_justSaved ? Icons.check_circle : Icons.check),
-                  label: Text(_justSaved ? 'Сохранено' : 'Сохранить'),
-                  style: FilledButton.styleFrom(
-                      minimumSize: const Size.fromHeight(52)),
-                ),
+                _buildSaveButton(),
                 const SizedBox(height: 32),
               ],
             ),
+    );
+  }
+
+  /// Состояние заметки видно всегда, а не 2 секунды после нажатия: «Сохранено»
+  /// держится, пока нет новых правок (в т.ч. после возврата с другой вкладки).
+  Widget _buildSaveButton() {
+    if (_saving) {
+      return FilledButton.icon(
+        onPressed: null,
+        icon: const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        label: const Text('Сохранение…'),
+        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+      );
+    }
+    final saved = !_dirty && _hasText;
+    return FilledButton.icon(
+      onPressed: _dirty ? _saveNow : null,
+      icon: Icon(saved ? Icons.check_circle : Icons.check),
+      label: Text(saved ? 'Сохранено' : 'Сохранить'),
+      style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
     );
   }
 

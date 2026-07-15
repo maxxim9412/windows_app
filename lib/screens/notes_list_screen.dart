@@ -31,10 +31,36 @@ class _NotesListScreenState extends State<NotesListScreen> {
       body: FutureBuilder<List<Note>>(
         future: _future,
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Не удалось загрузить заметки.',
+                        textAlign: TextAlign.center),
+                    const SizedBox(height: 8),
+                    Text('${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.error)),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () => setState(
+                          () => _future = NotesRepository.instance.all()),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Повторить'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          if (snapshot.connectionState != ConnectionState.done) {
             return const Center(child: CircularProgressIndicator());
           }
-          final notes = snapshot.data!;
+          final notes = snapshot.data ?? const <Note>[];
           if (notes.isEmpty) {
             return const Center(
               child: Padding(

@@ -28,7 +28,7 @@ class NotesRepository {
           (d['a3'] as String?) ?? '',
           (d['a4'] as String?) ?? '',
         ],
-        updatedAt: (d['updatedAt'] as int?) ?? 0,
+        updatedAt: (d['updatedAt'] as num?)?.toInt() ?? 0,
       );
 
   Future<Note?> forDate(DateTime day) async {
@@ -55,13 +55,14 @@ class NotesRepository {
     if (kIsWeb) {
       final uid = AuthService.instance.uid;
       if (uid == null) return const [];
-      final q = await _db
-          .collection('users')
-          .doc(uid)
-          .collection('notes')
-          .orderBy(FieldPath.documentId, descending: true)
-          .get();
-      return q.docs.map((doc) => _noteFromCloud(doc.id, doc.data())).toList();
+      final q =
+          await _db.collection('users').doc(uid).collection('notes').get();
+      // Сортируем на клиенте: id документа = дата (yyyy-MM-dd), заметок мало,
+      // а orderBy по documentId лишний раз нагружает правила Firestore.
+      final notes =
+          q.docs.map((doc) => _noteFromCloud(doc.id, doc.data())).toList();
+      notes.sort((a, b) => b.date.compareTo(a.date));
+      return notes;
     }
     final db = await AppDatabase.instance.database;
     final rows = await db.query('notes', orderBy: 'date DESC');
