@@ -205,6 +205,31 @@ class TriadService {
     }
   }
 
+  /// Проставить церковь тройкам, созданным до привязки к церкви. Без этого
+  /// такая тройка (и все её участники) не попадает в отчёт по церкви, который
+  /// фильтрует тройки по churchId. Берём церковь текущего участника — все в
+  /// тройке из одной церкви. Постепенно чинится, как только участник с церковью
+  /// открывает приложение.
+  Future<void> backfillTriadChurch() async {
+    try {
+      final uid = _uid;
+      if (uid == null) return;
+      final churchId = await AuthService.instance.currentChurchId();
+      if (churchId == null) return;
+      final q = await _db
+          .collection('triads')
+          .where('memberUids', arrayContains: uid)
+          .get();
+      for (final doc in q.docs) {
+        if (doc.data()['churchId'] == null) {
+          await doc.reference.update({'churchId': churchId});
+        }
+      }
+    } catch (_) {
+      // Не критично: попробуем при следующем запуске.
+    }
+  }
+
   /// Достать код из введённой строки (кода или ссылки).
   static String extractCode(String input) {
     final s = input.trim();

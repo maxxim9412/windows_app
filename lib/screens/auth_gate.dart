@@ -64,6 +64,7 @@ class _StartupGateState extends State<_StartupGate> {
     await LocalMigration.instance.runIfNeeded();
     await ThemeService.instance.loadForCurrentUser();
     await TriadService.instance.ensureInviteCodeIndexed();
+    await TriadService.instance.backfillTriadChurch();
   }
 
   @override
