@@ -52,7 +52,7 @@ class _UpdateBannerState extends State<UpdateBanner> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => _download(info.apkUrl),
+                  onPressed: () => _download(info.downloadUrl),
                   child: const Text('Обновить'),
                 ),
                 IconButton(
