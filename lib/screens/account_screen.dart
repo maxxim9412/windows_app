@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/church_repository.dart';
 import '../models/church.dart';
 import '../services/auth_service.dart';
+import '../services/theme_service.dart';
 import '../services/triad_service.dart';
 import '../utils/app_themes.dart';
 import 'church_management_screen.dart';
@@ -103,12 +104,14 @@ class _AccountScreenState extends State<AccountScreen> {
       builder: (_) => StatefulBuilder(
         builder: (context, setInner) => AlertDialog(
           title: const Text('Ваша церковь'),
+          // Варианта «не выбрана» тут нет: без церкви нет ни графика, ни тройки,
+          // а при регистрации церковь обязательна — не давать же обходить это
+          // через смену.
           content: DropdownButtonFormField<String>(
             initialValue: selected,
             isExpanded: true,
             decoration: const InputDecoration(border: OutlineInputBorder()),
             items: [
-              const DropdownMenuItem(value: null, child: Text('Не выбрана')),
               for (final c in _churches)
                 DropdownMenuItem(value: c.id, child: Text(c.name)),
             ],
@@ -127,15 +130,45 @@ class _AccountScreenState extends State<AccountScreen> {
     );
     // null-результат допустим (пользователь мог выбрать «Не выбрана»),
     // поэтому отличаем отмену по флагу.
-    if (result != _churchId) {
-      await AuthService.instance.setChurch(result);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text(
-                'Церковь изменена. Перезапустите приложение, чтобы обновить график.')));
-      }
-      _load();
+    if (result == _churchId) return;
+
+    // Тройка читает график своей церкви, поэтому смешанной по церквям она быть
+    // не может: уходя в другую церковь, человек выходит и из тройки.
+    final triadId = await TriadService.instance.currentTriadId();
+    if (triadId != null) {
+      if (!mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Смена церкви'),
+          content: const Text(
+              'Участники тройки читают один и тот же график, поэтому тройка '
+              'может быть только из одной церкви.\n\n'
+              'Если сменить церковь, вы выйдете из своей тройки. Продолжить?'),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Отмена')),
+            FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Сменить и выйти')),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      await TriadService.instance.leave(triadId);
     }
+
+    await AuthService.instance.setChurch(result);
+    // У новой церкви может быть своё оформление.
+    await ThemeService.instance.loadForCurrentUser();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(triadId != null
+              ? 'Церковь изменена, из тройки вы вышли.'
+              : 'Церковь изменена.')));
+    }
+    _load();
   }
 
   @override

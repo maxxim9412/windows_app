@@ -25,6 +25,13 @@
   "hosting": {
     "public": "build/web",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "rewrites": [{ "source": "**", "destination": "/index.html" }]
+    "rewrites": [{ "source": "**", "destination": "/index.html" }],
+    "headers": [
+      {
+        "comment": "Firebase по умолчанию кэширует всё на час, включая index.html и flutter_service_worker.js — а ими PWA обновляет себя. Из-за этого новая сборка не доезжала до телефона, пока вручную не очистишь данные сайта. no-cache не запрещает кэш, а требует сверяться с сервером: не изменилось — придёт 304, и файл возьмётся из кэша.",
+        "source": "**/*.@(html|js|json)",
+        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+      }
+    ]
   }
 }

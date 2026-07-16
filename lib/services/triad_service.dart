@@ -117,12 +117,18 @@ class TriadService {
     };
   }
 
-  /// Создать новую тройку (я — первый участник).
+  /// Создать новую тройку (я — первый участник). Церковь обязательна: тройка
+  /// читает график своей церкви, значит у неё должна быть церковь.
   Future<void> createTriad() async {
     final uid = _uid;
     if (uid == null) throw TriadException('Нужно войти в аккаунт.');
     if (await currentTriadId() != null) {
       throw TriadException('Вы уже состоите в тройке.');
+    }
+    final churchId = await AuthService.instance.currentChurchId();
+    if (churchId == null) {
+      throw TriadException(
+          'Сначала выберите церковь — тройка читает график своей церкви.');
     }
     final profile = await _myProfile();
     final ref = _db.collection('triads').doc();
@@ -134,6 +140,7 @@ class TriadService {
       'inviteCode': _genCode(),
       'joinRequests': {},
       'removalRequests': {},
+      'churchId': churchId,
     });
     reset();
   }
@@ -156,12 +163,27 @@ class TriadService {
     final code = extractCode(codeOrLink);
     if (code.isEmpty) throw TriadException('Введите код приглашения.');
 
+    final myChurchId = await AuthService.instance.currentChurchId();
+    if (myChurchId == null) {
+      throw TriadException(
+          'Сначала выберите церковь — тройка читает график своей церкви.');
+    }
+
     final q = await _db
         .collection('triads')
         .where('inviteCode', isEqualTo: code)
         .limit(1)
         .get();
     if (q.docs.isEmpty) throw TriadException('Тройка с таким кодом не найдена.');
+
+    // Церковь берём с самой тройки: чужой профиль читать нельзя (правила), да и
+    // сверять надо с тройкой, а не с тем, кто прислал код.
+    final triadChurchId = q.docs.first.data()['churchId'] as String?;
+    if (triadChurchId != null && triadChurchId != myChurchId) {
+      throw TriadException(
+          'Эта тройка из другой церкви. Участники тройки читают один и тот же '
+          'график, поэтому вступить можно только в тройку своей церкви.');
+    }
 
     final ref = q.docs.first.reference;
     final profile = await _myProfile();

@@ -85,6 +85,13 @@ class Triad {
   final CallSchedule? callSchedule;
   final ScheduleProposal? scheduleProposal;
 
+  /// Церковь тройки: все её участники читают один график, значит church у всех
+  /// одна. Хранится здесь, а не вычисляется по профилям: правила Firestore не
+  /// дают читать чужой профиль, так что иначе проверить церковь было бы нечем.
+  ///
+  /// null — тройка создана до этого правила, проверить её состав уже не по чему.
+  final String? churchId;
+
   const Triad({
     required this.id,
     required this.createdBy,
@@ -95,6 +102,7 @@ class Triad {
     required this.removalRequests,
     this.callSchedule,
     this.scheduleProposal,
+    this.churchId,
   });
 
   int get memberCount => memberUids.length;
@@ -159,6 +167,7 @@ class Triad {
       callSchedule:
           CallSchedule.fromMap(d['callSchedule'] as Map<String, dynamic>?),
       scheduleProposal: proposal,
+      churchId: d['churchId'] as String?,
     );
   }
 }

@@ -146,6 +146,8 @@ class _AuthScreenState extends State<AuthScreen> {
                     if (_isRegister)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
+                        // Церковь обязательна: от неё зависит и график отрывков,
+                        // и тройка (она может быть только из одной церкви).
                         child: DropdownButtonFormField<String>(
                           initialValue: _churchId,
                           isExpanded: true,
@@ -153,14 +155,15 @@ class _AuthScreenState extends State<AuthScreen> {
                             labelText: 'Церковь',
                             prefixIcon: Icon(Icons.church_outlined),
                             border: OutlineInputBorder(),
+                            helperText: 'Отрывки и тройка — внутри вашей церкви',
                           ),
                           items: [
-                            const DropdownMenuItem(
-                                value: null, child: Text('Не выбрано')),
                             for (final c in _churches)
                               DropdownMenuItem(value: c.id, child: Text(c.name)),
                           ],
                           onChanged: (v) => setState(() => _churchId = v),
+                          validator: (v) =>
+                              v == null ? 'Выберите церковь' : null,
                         ),
                       ),
                     TextFormField(
