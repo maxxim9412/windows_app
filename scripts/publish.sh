@@ -21,7 +21,7 @@ APK=build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
 # Постоянная публичная ссылка на файл на Яндекс.Диске (вида
 # https://disk.yandex.ru/d/XXXX). Пусто — манифест не публикуется, плашка
 # обновления не показывается (безопасно, пока ссылки нет).
-YANDEX_URL=""
+YANDEX_URL="https://disk.yandex.ru/d/HPbDPMHhJ6YrcQ"
 
 echo "==> Сборка веба"
 $FLUTTER build web --release
