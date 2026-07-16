@@ -84,3 +84,19 @@ final Map<String, String> kBookNameByCode = {
 };
 
 String bookName(String code) => kBookNameByCode[code] ?? code;
+
+/// Позиция книги в каноническом порядке ([kBibleBooks]).
+final Map<String, int> kBookIndexByCode = {
+  for (var i = 0; i < kBibleBooks.length; i++) kBibleBooks[i].code: i,
+};
+
+/// Индекс книги для сортировки. Неизвестный код уходит в конец, а не в начало.
+int bookIndex(String code) => kBookIndexByCode[code] ?? kBibleBooks.length;
+
+/// Граница заветов — берём от кода первой книги НЗ, а не числом: список книг
+/// может поменяться.
+final int _firstNewTestamentIndex = kBookIndexByCode['mf']!;
+
+bool isNewTestament(String code) => bookIndex(code) >= _firstNewTestamentIndex;
+
+bool isPsalms(String code) => code == 'ps';
