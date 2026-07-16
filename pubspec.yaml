@@ -1,7 +1,7 @@
 name: bible_reflection
 description: "Размышления над Библией — отрывок дня, личные заметки и напоминания."
 publish_to: 'none'
-version: 0.4.0+14
+version: 0.4.1+15
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -21,6 +21,9 @@ dependencies:
 
   # Открытие ссылок
   url_launcher: ^6.3.0
+
+  # Своя версия приложения — для проверки обновлений
+  package_info_plus: ^8.0.0
 
   # Встроенный аудиозвонок тройки
   agora_rtc_engine: 6.5.4

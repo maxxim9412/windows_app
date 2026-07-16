@@ -7,6 +7,7 @@ import '../models/triad.dart';
 import '../services/auth_service.dart';
 import '../services/ring_service.dart';
 import '../services/triad_service.dart';
+import '../widgets/update_banner.dart';
 import 'account_screen.dart';
 import 'home_screen.dart';
 import 'reading_screen.dart';
@@ -123,7 +124,12 @@ class _RootScaffoldState extends State<RootScaffold> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _index, children: _screens),
+      body: Column(
+        children: [
+          const UpdateBanner(),
+          Expanded(child: IndexedStack(index: _index, children: _screens)),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (i) => setState(() => _index = i),
