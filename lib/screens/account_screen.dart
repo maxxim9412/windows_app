@@ -274,7 +274,7 @@ class _AccountScreenState extends State<AccountScreen> {
               child: ListTile(
                 leading: const Icon(Icons.palette_outlined),
                 title: const Text('Оформление церкви'),
-                subtitle: Text(themeById(_myChurch!.themeId).name),
+                subtitle: Text(colorName(_myChurch!.themeSeed)),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () async {
                   await Navigator.push(
@@ -283,7 +283,7 @@ class _AccountScreenState extends State<AccountScreen> {
                       builder: (_) => ChurchThemeScreen(
                         churchId: _myChurch!.id,
                         churchName: _myChurch!.name,
-                        currentThemeId: _myChurch!.themeId,
+                        currentSeed: _myChurch!.themeSeed,
                       ),
                     ),
                   );

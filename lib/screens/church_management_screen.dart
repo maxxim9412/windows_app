@@ -158,7 +158,7 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
     return ExpansionTile(
       title: Text(c.name),
       subtitle: Text(
-          'Админов: ${c.adminUids.length} · ${themeById(c.themeId).name}'),
+          'Админов: ${c.adminUids.length} · ${colorName(c.themeSeed)}'),
       trailing: IconButton(
         tooltip: 'Удалить церковь',
         icon: const Icon(Icons.delete_outline),
@@ -205,7 +205,7 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.palette_outlined),
           title: const Text('Оформление'),
-          subtitle: Text(themeById(c.themeId).name),
+          subtitle: Text(colorName(c.themeSeed)),
           trailing: const Icon(Icons.chevron_right),
           onTap: () => Navigator.push(
             context,
@@ -213,7 +213,7 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
               builder: (_) => ChurchThemeScreen(
                 churchId: c.id,
                 churchName: c.name,
-                currentThemeId: c.themeId,
+                currentSeed: c.themeSeed,
               ),
             ),
           ),

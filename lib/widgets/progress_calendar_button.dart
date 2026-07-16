@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/progress_repository.dart';
 import '../screens/progress_calendar_screen.dart';
 import '../services/selected_day.dart';
+import '../utils/status_colors.dart';
 
 /// Кнопка календаря со значком состояния: галочка, если с 1-го числа всё
 /// закрыто, и «!», если что-то пропущено. Так пропуск видно, не открывая
@@ -15,8 +16,6 @@ class ProgressCalendarButton extends StatefulWidget {
 }
 
 class _ProgressCalendarButtonState extends State<ProgressCalendarButton> {
-  static const _okColor = Color(0xFF2E7D32);
-  static const _gapColor = Color(0xFFEF6C00);
 
   bool? _hasGaps; // null — ещё не посчитали
 
@@ -58,12 +57,14 @@ class _ProgressCalendarButtonState extends State<ProgressCalendarButton> {
   @override
   Widget build(BuildContext context) {
     final gaps = _hasGaps;
+    final brightness = Theme.of(context).brightness;
     return IconButton(
       tooltip: gaps == true ? 'Есть пропущенные дни' : 'Мой прогресс',
       onPressed: _open,
       icon: Badge(
         isLabelVisible: gaps != null,
-        backgroundColor: gaps == true ? _gapColor : _okColor,
+        backgroundColor:
+            gaps == true ? missedColor(brightness) : doneColor(brightness),
         label: gaps == true
             ? const Text('!',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10))

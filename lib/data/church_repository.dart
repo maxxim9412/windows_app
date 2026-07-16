@@ -37,10 +37,10 @@ class ChurchRepository {
     await _col.doc(id).delete();
   }
 
-  /// Задать оформление для прихожан. Единственное поле церкви, которое правилами
-  /// разрешено менять её админу (всё остальное — только супер-админ).
-  Future<void> setTheme(String churchId, String themeId) async {
-    await _col.doc(churchId).update({'theme': themeId});
+  /// Задать основной цвет оформления (ARGB-зерно). Единственное поле церкви,
+  /// которое правилами разрешено менять её админу (остальное — супер-админ).
+  Future<void> setThemeColor(String churchId, int seed) async {
+    await _col.doc(churchId).update({'themeColor': seed});
   }
 
   Future<void> addAdmin(String churchId, String uid) async {

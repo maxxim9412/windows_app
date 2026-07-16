@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import '../data/progress_repository.dart';
 import '../utils/date_helpers.dart';
+import '../utils/status_colors.dart';
 
 /// Календарь с отметками: что сделано, что пропущено. Выбор дня возвращается
 /// вызывающему экрану через Navigator.pop.
@@ -20,9 +21,6 @@ class ProgressCalendarScreen extends StatefulWidget {
 }
 
 class _ProgressCalendarScreenState extends State<ProgressCalendarScreen> {
-  static const _doneColor = Color(0xFF2E7D32); // зелёный — сделано
-  static const _missedColor = Color(0xFFEF6C00); // оранжевый — пропущено
-
   late DateTime _month = DateTime(widget.selected.year, widget.selected.month);
   MonthProgress? _progress;
   bool _loading = true;
@@ -146,12 +144,13 @@ class _ProgressCalendarScreenState extends State<ProgressCalendarScreen> {
     final isFuture = day.isAfter(_today);
     final scheduled = p?.scheduled ?? false;
     final selectable = scheduled && !isFuture;
+    final brightness = theme.brightness;
 
     Color dot(bool has, bool done) {
       if (!has) return Colors.transparent;
-      if (done) return _doneColor;
+      if (done) return doneColor(brightness);
       if (isFuture || isToday) return theme.colorScheme.outlineVariant;
-      return _missedColor;
+      return missedColor(brightness);
     }
 
     return InkWell(
@@ -225,8 +224,8 @@ class _ProgressCalendarScreenState extends State<ProgressCalendarScreen> {
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline)),
             const SizedBox(height: 10),
-            row(_doneColor, 'сделано'),
-            row(_missedColor, 'пропущено — можно наверстать'),
+            row(doneColor(theme.brightness), 'сделано'),
+            row(missedColor(theme.brightness), 'пропущено — можно наверстать'),
             row(theme.colorScheme.outlineVariant, 'ещё не сделано (сегодня)'),
             const SizedBox(height: 6),
             Text(

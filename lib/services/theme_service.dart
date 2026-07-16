@@ -4,34 +4,34 @@ import '../data/church_repository.dart';
 import '../utils/app_themes.dart';
 import 'auth_service.dart';
 
-/// Оформление текущего пользователя — его задаёт админ его церкви.
+/// Основной цвет-зерно текущего пользователя — его задаёт админ его церкви.
 ///
 /// Приложение слушает это значение и перекрашивается на лету, поэтому админ
 /// видит результат сразу, не перезапуская.
-class ThemeService extends ValueNotifier<AppTheme> {
-  ThemeService._() : super(themeById(null));
+class ThemeService extends ValueNotifier<int> {
+  ThemeService._() : super(kDefaultSeed);
   static final ThemeService instance = ThemeService._();
 
-  /// Подтянуть оформление церкви пользователя. Вызывается после входа и после
-  /// смены церкви. Ошибку глотаем: остаться на классической теме не страшно,
-  /// а ронять запуск из-за цвета — глупо.
+  /// Подтянуть цвет церкви пользователя. Вызывается после входа и после смены
+  /// церкви. Ошибку глотаем: остаться на цвете по умолчанию не страшно, а
+  /// ронять запуск из-за оформления — глупо.
   Future<void> loadForCurrentUser() async {
     try {
       final churchId = await AuthService.instance.currentChurchId();
       if (churchId == null) {
-        value = themeById(null);
+        value = kDefaultSeed;
         return;
       }
       final church = await ChurchRepository.instance.byId(churchId);
-      value = themeById(church?.themeId);
+      value = church?.themeSeed ?? kDefaultSeed;
     } catch (_) {
-      value = themeById(null);
+      value = kDefaultSeed;
     }
   }
 
   /// Применить локально — чтобы админ увидел выбор мгновенно.
-  void apply(String id) => value = themeById(id);
+  void apply(int seed) => value = seed;
 
-  /// Вернуть тему по умолчанию (при выходе из аккаунта).
-  void reset() => value = themeById(null);
+  /// Вернуть цвет по умолчанию (при выходе из аккаунта).
+  void reset() => value = kDefaultSeed;
 }

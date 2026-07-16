@@ -1,65 +1,51 @@
-import 'package:flutter/material.dart';
-
-/// Оформление, которое админ церкви выбирает для своих прихожан.
+/// Основной цвет оформления, который админ выбирает для церкви.
 ///
-/// Палитра не задаётся руками по цветам: Material 3 генерирует её целиком —
-/// фон, карточки, кнопки, обе схемы (светлую и тёмную) — из одного зерна. За
-/// счёт этого экраны, которые везде берут цвета из темы, перекрашиваются
-/// согласованно.
-class AppTheme {
-  const AppTheme({
-    required this.id,
-    required this.name,
-    required this.description,
-    required this.seed,
-    this.variant = DynamicSchemeVariant.tonalSpot,
-  });
-
-  /// Хранится в Firestore (`churches/{id}.theme`) — не переименовывать.
-  final String id;
+/// Из одного «зерна» Material 3 генерирует всю палитру — фон, карточки, кнопки,
+/// светлую и тёмную схему. Поэтому храним ровно цвет-зерно, а не набор.
+class ThemeColor {
+  const ThemeColor({required this.name, required this.seed});
   final String name;
-  final String description;
+
+  /// ARGB-значение цвета-зерна (для Color(seed)).
   final int seed;
-
-  /// Способ разложить зерно в палитру. `neutral` заметно гасит насыщенность.
-  final DynamicSchemeVariant variant;
-
-  ColorScheme scheme(Brightness brightness) => ColorScheme.fromSeed(
-        seedColor: Color(seed),
-        brightness: brightness,
-        dynamicSchemeVariant: variant,
-      );
 }
 
-const List<AppTheme> kAppThemes = [
-  AppTheme(
-    id: 'classic',
-    name: 'Классический синий',
-    description: 'Как было с самого начала.',
-    seed: 0xFF5B6CB8,
-  ),
-  AppTheme(
-    id: 'quiet',
-    name: 'Приглушённый синий',
-    description: 'Тот же цвет, но тише: из фона уходит синева.',
-    seed: 0xFF5B6CB8,
-    variant: DynamicSchemeVariant.neutral,
-  ),
-  AppTheme(
-    id: 'sage',
-    name: 'Шалфей',
-    description: 'Спокойный зелёный, глаз отдыхает на длинных текстах.',
-    seed: 0xFF5F7A6B,
-  ),
-  AppTheme(
-    id: 'sand',
-    name: 'Тёплый песок',
-    description: 'Бумажная гамма вместо холодной.',
-    seed: 0xFF8A7060,
-  ),
+/// Цвет по умолчанию для новых церквей (Синий).
+const int kDefaultSeed = 0xFF2D6CDF;
+
+/// Палитра выбора. Оттенки разнесены по кругу, чтобы легко различались.
+const List<ThemeColor> kThemeColors = [
+  ThemeColor(name: 'Синий', seed: 0xFF2D6CDF),
+  ThemeColor(name: 'Бирюзовый', seed: 0xFF00857D),
+  ThemeColor(name: 'Зелёный', seed: 0xFF2E9E3A),
+  ThemeColor(name: 'Лайм', seed: 0xFF7E9A1E),
+  ThemeColor(name: 'Янтарь', seed: 0xFFD69A00),
+  ThemeColor(name: 'Оранжевый', seed: 0xFFE0601C),
+  ThemeColor(name: 'Красный', seed: 0xFFCE3A34),
+  ThemeColor(name: 'Розовый', seed: 0xFFD24B86),
+  ThemeColor(name: 'Фиолетовый', seed: 0xFF9B45C4),
+  ThemeColor(name: 'Сине-фиолетовый', seed: 0xFF5B4BD0),
 ];
 
-/// Первая тема — запасной вариант: церковь не выбрана, оформление не задано
-/// или в базе оказался незнакомый id.
-AppTheme themeById(String? id) =>
-    kAppThemes.firstWhere((t) => t.id == id, orElse: () => kAppThemes.first);
+/// Название цвета по зерну (для подписей). Незнакомый — «Свой цвет».
+String colorName(int seed) {
+  for (final c in kThemeColors) {
+    if (c.seed == seed) return c.name;
+  }
+  return 'Свой цвет';
+}
+
+/// Перенос старых id-шаблонов на ближайший цвет новой палитры. Церкви,
+/// настроенные до этой палитры, хранили строковый id (classic/quiet/sage/sand).
+int seedForLegacyTheme(String? id) {
+  switch (id) {
+    case 'sage':
+      return 0xFF2E9E3A; // зелёный
+    case 'sand':
+      return 0xFFE0601C; // оранжевый (тёплый)
+    case 'classic':
+    case 'quiet':
+    default:
+      return kDefaultSeed;
+  }
+}
