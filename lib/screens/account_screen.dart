@@ -7,6 +7,7 @@ import '../services/theme_service.dart';
 import '../services/triad_service.dart';
 import '../utils/app_themes.dart';
 import 'church_management_screen.dart';
+import 'church_report_screen.dart';
 import 'church_theme_screen.dart';
 import 'triad_view.dart';
 
@@ -221,6 +222,25 @@ class _AccountScreenState extends State<AccountScreen> {
                   onPressed: _changeChurch, child: const Text('Изменить')),
             ),
           ),
+          if (_myChurch != null && _isChurchAdmin)
+            Card(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: ListTile(
+                leading: const Icon(Icons.insights_outlined),
+                title: const Text('Отчёт по церкви'),
+                subtitle: const Text('Тройки и кому нужен участник'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ChurchReportScreen(
+                      churchId: _myChurch!.id,
+                      churchName: _myChurch!.name,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_myChurch != null && _isChurchAdmin)
             Card(
               color: theme.colorScheme.surfaceContainerHighest,

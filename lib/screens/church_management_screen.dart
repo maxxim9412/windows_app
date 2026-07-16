@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/church_repository.dart';
 import '../models/church.dart';
 import '../utils/app_themes.dart';
+import 'church_report_screen.dart';
 import 'church_theme_screen.dart';
 import 'monthly_schedule_screen.dart';
 
@@ -165,6 +166,23 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
       ),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       children: [
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.insights_outlined),
+          title: const Text('Отчёт'),
+          subtitle: const Text('Люди и тройки этой церкви'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChurchReportScreen(
+                churchId: c.id,
+                churchName: c.name,
+              ),
+            ),
+          ),
+        ),
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
