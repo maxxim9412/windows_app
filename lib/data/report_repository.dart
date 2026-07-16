@@ -3,19 +3,28 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/triad.dart';
 import '../services/auth_service.dart';
 
+/// Прихожанин церкви — для списка «без тройки».
+class ChurchPerson {
+  const ChurchPerson({required this.uid, required this.name, required this.email});
+
+  final String uid;
+  final String name;
+  final String email;
+
+  String get displayName => name.trim().isEmpty ? 'Без имени' : name;
+}
+
 /// Сводка по церкви для админа.
 class ChurchReport {
-  const ChurchReport({
-    required this.triads,
-    required this.totalMembers,
-  });
+  const ChurchReport({required this.triads, this.members});
 
   /// Тройки этой церкви.
   final List<Triad> triads;
 
-  /// Всего людей в церкви. null — считать не разрешено (это может только
-  /// супер-админ: профили остальных закрыты правилами).
-  final int? totalMembers;
+  /// Прихожане церкви. null — читать профили не разрешено. Это может только
+  /// супер-админ: профили остальных закрыты правилами, и запрет распространяется
+  /// на подсчёт тоже.
+  final List<ChurchPerson>? members;
 
   int get triadCount => triads.length;
   List<Triad> get fullTriads => triads.where((t) => t.isFull).toList();
@@ -25,16 +34,22 @@ class ChurchReport {
   int get peopleInTriads =>
       triads.fold(0, (total, t) => total + t.memberUids.length);
 
-  /// Людей без тройки. null, если общее число людей неизвестно.
-  int? get peopleWithoutTriad {
-    final total = totalMembers;
-    return total == null ? null : total - peopleInTriads;
+  int? get totalMembers => members?.length;
+
+  /// Кто ещё не в тройке. null, если прихожане неизвестны.
+  List<ChurchPerson>? get withoutTriad {
+    final all = members;
+    if (all == null) return null;
+    final inTriads = {for (final t in triads) ...t.memberUids};
+    return all.where((p) => !inTriads.contains(p.uid)).toList();
   }
 }
 
-/// Отчёты по церкви. Считает по тройкам: имена участников лежат в самом
-/// документе тройки, поэтому профили читать не нужно — а их правила и не дают
-/// читать никому, кроме владельца и супер-админа.
+/// Отчёты по церкви.
+///
+/// Тройки и имена/почты их участников берутся из самих документов троек —
+/// профили для этого читать не нужно. Список прихожан (и, значит, «кто без
+/// тройки») требует чтения профилей, поэтому доступен только супер-админу.
 class ReportRepository {
   ReportRepository._();
   static final ReportRepository instance = ReportRepository._();
@@ -48,21 +63,25 @@ class ReportRepository {
         .get();
     final triads = q.docs.map(Triad.fromDoc).toList();
 
-    // Общее число людей — только супер-админу: у остальных нет прав на чтение
-    // чужих профилей, а запрет распространяется и на подсчёт.
-    int? total;
+    List<ChurchPerson>? members;
     if (await AuthService.instance.isAdmin()) {
       try {
-        final agg = await _db
+        final users = await _db
             .collection('users')
             .where('churchId', isEqualTo: churchId)
-            .count()
             .get();
-        total = agg.count;
+        members = users.docs
+            .map((d) => ChurchPerson(
+                  uid: d.id,
+                  name: (d.data()['name'] as String?) ?? '',
+                  email: (d.data()['email'] as String?) ?? '',
+                ))
+            .toList()
+          ..sort((a, b) => a.displayName.compareTo(b.displayName));
       } catch (_) {
-        total = null; // не смогли посчитать — просто не покажем строку
+        members = null; // не смогли прочитать — просто не покажем этот раздел
       }
     }
-    return ChurchReport(triads: triads, totalMembers: total);
+    return ChurchReport(triads: triads, members: members);
   }
 }

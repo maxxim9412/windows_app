@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/report_repository.dart';
 import '../models/triad.dart';
@@ -119,8 +120,17 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                   Text('Полные тройки', style: theme.textTheme.titleMedium),
                   const SizedBox(height: 8),
                   ...r.fullTriads.map((t) => _triadCard(theme, t)),
+                  const SizedBox(height: 16),
                 ],
               ],
+              if (r.withoutTriad?.isNotEmpty ?? false)
+                _withoutTriadSection(theme, r.withoutTriad!),
+              const SizedBox(height: 12),
+              Text(
+                'Нажмите на человека, чтобы скопировать его почту.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.outline),
+              ),
               const SizedBox(height: 32),
             ],
           );
@@ -134,8 +144,8 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
       _tile(theme, 'Троек', '${r.triadCount}'),
       _tile(theme, 'Людей в тройках', '${r.peopleInTriads}'),
       if (r.totalMembers != null) _tile(theme, 'Всего людей', '${r.totalMembers}'),
-      if (r.peopleWithoutTriad != null)
-        _tile(theme, 'Без тройки', '${r.peopleWithoutTriad}'),
+      if (r.withoutTriad != null)
+        _tile(theme, 'Без тройки', '${r.withoutTriad!.length}'),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -173,10 +183,47 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
         ),
       );
 
+  void _copy(String text, String what) {
+    Clipboard.setData(ClipboardData(text: text));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('$what скопирована')));
+  }
+
+  /// Строка человека: имя и почта. Нажатие копирует почту — связаться можно
+  /// прямо отсюда, не выясняя контакты на стороне.
+  Widget _personRow(ThemeData theme, String name, String email) {
+    return InkWell(
+      onTap: email.isEmpty ? null : () => _copy(email, 'Почта'),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: theme.textTheme.bodyMedium),
+                  if (email.isNotEmpty)
+                    Text(email,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.outline)),
+                ],
+              ),
+            ),
+            if (email.isNotEmpty)
+              Icon(Icons.copy_outlined,
+                  size: 16, color: theme.colorScheme.outline),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _triadCard(ThemeData theme, Triad t) {
-    final names = t.memberUids
-        .map((uid) => t.members[uid]?.name)
-        .map((n) => (n == null || n.isEmpty) ? 'Без имени' : n)
+    final emails = t.memberUids
+        .map((uid) => t.members[uid]?.email ?? '')
+        .where((e) => e.isNotEmpty)
         .toList();
     return Card(
       elevation: 0,
@@ -197,16 +244,31 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                       : theme.colorScheme.outline,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  t.isFull
-                      ? 'Тройка собрана'
-                      : 'Нужно ещё ${3 - t.memberCount}',
-                  style: theme.textTheme.labelLarge,
+                Expanded(
+                  child: Text(
+                    t.isFull
+                        ? 'Тройка собрана'
+                        : 'Нужно ещё ${3 - t.memberCount}',
+                    style: theme.textTheme.labelLarge,
+                  ),
                 ),
+                if (emails.length > 1)
+                  TextButton.icon(
+                    onPressed: () => _copy(emails.join(', '), 'Почты тройки'),
+                    icon: const Icon(Icons.copy_outlined, size: 16),
+                    label: const Text('Все почты'),
+                  ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(names.join(' · '), style: theme.textTheme.bodyMedium),
+            const Divider(height: 12),
+            for (final uid in t.memberUids)
+              _personRow(
+                theme,
+                (t.members[uid]?.name.isNotEmpty ?? false)
+                    ? t.members[uid]!.name
+                    : 'Без имени',
+                t.members[uid]?.email ?? '',
+              ),
             if (t.joinRequests.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text('Заявок на вступление: ${t.joinRequests.length}',
@@ -216,6 +278,47 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Кто ещё не в тройке — самое полезное для «позвать». Видно только тому, кто
+  /// может читать профили, то есть супер-админу.
+  Widget _withoutTriadSection(ThemeData theme, List<ChurchPerson> people) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+                child: Text('Пока без тройки',
+                    style: theme.textTheme.titleMedium)),
+            if (people.any((p) => p.email.isNotEmpty))
+              TextButton.icon(
+                onPressed: () => _copy(
+                    people
+                        .where((p) => p.email.isNotEmpty)
+                        .map((p) => p.email)
+                        .join(', '),
+                    'Почты'),
+                icon: const Icon(Icons.copy_outlined, size: 16),
+                label: const Text('Все почты'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 0,
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Column(
+              children: [
+                for (final p in people) _personRow(theme, p.displayName, p.email),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
