@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../services/local_migration.dart';
 import '../services/theme_service.dart';
+import '../services/triad_service.dart';
 import 'auth_screen.dart';
 import 'root_scaffold.dart';
 
@@ -46,6 +47,8 @@ class _AuthGateState extends State<AuthGate> {
 /// 1. Разовый перенос локальных данных в облако — иначе экраны прочитали бы
 ///    Firestore до заливки и показали пустые дни, будто прогресс потерян.
 /// 2. Оформление церкви — иначе приложение мигнуло бы чужой темой.
+/// 3. Индекс кода своей тройки — тройки, созданные до его появления, иначе
+///    перестали бы находиться по приглашению.
 class _StartupGate extends StatefulWidget {
   const _StartupGate({super.key});
 
@@ -60,6 +63,7 @@ class _StartupGateState extends State<_StartupGate> {
   Future<void> _prepare() async {
     await LocalMigration.instance.runIfNeeded();
     await ThemeService.instance.loadForCurrentUser();
+    await TriadService.instance.ensureInviteCodeIndexed();
   }
 
   @override

@@ -132,17 +132,57 @@ class TriadService {
     }
     final profile = await _myProfile();
     final ref = _db.collection('triads').doc();
-    await ref.set({
+    final code = _genCode();
+    // Тройку и запись в индексе кодов пишем одной пачкой: тройка без своего
+    // кода в индексе не находится по приглашению.
+    final batch = _db.batch();
+    batch.set(ref, {
       'createdBy': uid,
       'createdAt': FieldValue.serverTimestamp(),
       'memberUids': [uid],
       'members': {uid: profile},
-      'inviteCode': _genCode(),
+      'inviteCode': code,
       'joinRequests': {},
       'removalRequests': {},
       'churchId': churchId,
     });
+    batch.set(_codeRef(code), {'triadId': ref.id});
+    await batch.commit();
     reset();
+  }
+
+  /// Индекс «код приглашения → id тройки» (`inviteCodes/{КОД}`).
+  ///
+  /// Нужен, чтобы вступление по коду не требовало листать сами тройки. Раньше
+  /// поиск шёл запросом `where('inviteCode', ...)`, а правила Firestore не
+  /// умеют ограничивать запрос по фильтру — приходилось разрешать читать список
+  /// троек любому вошедшему. А в документе тройки лежат имена и почты всех
+  /// участников, то есть их можно было выгрузить пачкой. В индексе личных
+  /// данных нет, поэтому его читать безопасно.
+  DocumentReference<Map<String, dynamic>> _codeRef(String code) =>
+      _db.collection('inviteCodes').doc(code);
+
+  /// Дописать индекс для тройки, созданной до его появления. Иначе её код
+  /// перестал бы находиться. Тихо ничего не делает, если всё уже на месте.
+  Future<void> ensureInviteCodeIndexed() async {
+    try {
+      final uid = _uid;
+      if (uid == null) return;
+      final q = await _db
+          .collection('triads')
+          .where('memberUids', arrayContains: uid)
+          .limit(1)
+          .get();
+      if (q.docs.isEmpty) return;
+      final code = q.docs.first.data()['inviteCode'] as String?;
+      if (code == null || code.isEmpty) return;
+      final indexed = await _codeRef(code).get();
+      if (!indexed.exists) {
+        await _codeRef(code).set({'triadId': q.docs.first.id});
+      }
+    } catch (_) {
+      // Не критично: попробуем при следующем запуске.
+    }
   }
 
   /// Достать код из введённой строки (кода или ссылки).
@@ -169,23 +209,29 @@ class TriadService {
           'Сначала выберите церковь — тройка читает график своей церкви.');
     }
 
-    final q = await _db
-        .collection('triads')
-        .where('inviteCode', isEqualTo: code)
-        .limit(1)
-        .get();
-    if (q.docs.isEmpty) throw TriadException('Тройка с таким кодом не найдена.');
+    // Ищем через индекс кодов, а не запросом по тройкам: листать тройки больше
+    // нельзя (в них имена и почты участников), см. [_codeRef].
+    final indexed = await _codeRef(code).get();
+    final triadId = indexed.data()?['triadId'] as String?;
+    if (triadId == null) {
+      throw TriadException('Тройка с таким кодом не найдена.');
+    }
+    final ref = _db.collection('triads').doc(triadId);
+    final snap = await ref.get();
+    if (!snap.exists) {
+      // Индекс пережил свою тройку — например, все из неё вышли.
+      throw TriadException('Тройка с таким кодом не найдена.');
+    }
 
     // Церковь берём с самой тройки: чужой профиль читать нельзя (правила), да и
     // сверять надо с тройкой, а не с тем, кто прислал код.
-    final triadChurchId = q.docs.first.data()['churchId'] as String?;
+    final triadChurchId = snap.data()!['churchId'] as String?;
     if (triadChurchId != null && triadChurchId != myChurchId) {
       throw TriadException(
           'Эта тройка из другой церкви. Участники тройки читают один и тот же '
           'график, поэтому вступить можно только в тройку своей церкви.');
     }
 
-    final ref = q.docs.first.reference;
     final profile = await _myProfile();
 
     final outcome = await _db.runTransaction<JoinOutcome>((tx) async {
@@ -347,6 +393,9 @@ class TriadService {
       members.remove(uid);
       if (members.isEmpty) {
         tx.delete(ref);
+        // Убираем и код из индекса, иначе он остался бы указывать в пустоту.
+        final code = data['inviteCode'] as String?;
+        if (code != null && code.isNotEmpty) tx.delete(_codeRef(code));
       } else {
         tx.update(ref, {
           'memberUids': FieldValue.arrayRemove([uid]),
