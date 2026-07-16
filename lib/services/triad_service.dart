@@ -23,8 +23,6 @@ class TriadService {
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  static const String inviteBaseUrl = 'https://bible-reflection.app/join?code=';
-
   String? get _uid => AuthService.instance.uid;
 
   // --- Кэш «моей» тройки (для привязки заметок) ---------------------------

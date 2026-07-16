@@ -95,7 +95,7 @@ class _EntryView extends StatelessWidget {
           controller: ctrl,
           autofocus: true,
           decoration: const InputDecoration(
-            hintText: 'Вставьте ссылку или код',
+            hintText: 'Введите код приглашения',
             border: OutlineInputBorder(),
           ),
         ),
@@ -159,7 +159,7 @@ class _EntryView extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: () => _join(context),
           icon: const Icon(Icons.link),
-          label: const Text('Вступить по ссылке'),
+          label: const Text('Вступить по коду'),
           style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         ),
       ],
@@ -348,7 +348,13 @@ class _MemberView extends StatelessWidget {
 
   Widget _inviteCard(BuildContext context) {
     final theme = Theme.of(context);
-    final link = '${TriadService.inviteBaseUrl}${triad.inviteCode}';
+    final code = triad.inviteCode;
+
+    void copy() {
+      Clipboard.setData(ClipboardData(text: code));
+      _snack(context, 'Код скопирован');
+    }
+
     return Card(
       color: theme.colorScheme.primaryContainer,
       child: Padding(
@@ -359,11 +365,25 @@ class _MemberView extends StatelessWidget {
             const Text('Пригласить в тройку',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text('Код: ${triad.inviteCode}',
-                style: theme.textTheme.headlineSmall
-                    ?.copyWith(letterSpacing: 3)),
-            const SizedBox(height: 8),
-            Text(link, style: theme.textTheme.bodySmall),
+            Text('Продиктуйте код или отправьте его — вступают по коду в '
+                'разделе «Тройка».',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.onPrimaryContainer)),
+            const SizedBox(height: 12),
+            // Код крупно, копируется по нажатию.
+            InkWell(
+              onTap: copy,
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  Text(code,
+                      style: theme.textTheme.headlineSmall
+                          ?.copyWith(letterSpacing: 3)),
+                  const SizedBox(width: 8),
+                  Icon(Icons.copy, size: 18, color: theme.colorScheme.outline),
+                ],
+              ),
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -371,8 +391,8 @@ class _MemberView extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () => Share.share(
                       'Присоединяйся к моей тройке в приложении '
-                      '«Размышления над Библией».\nСсылка: $link\n'
-                      'Или код: ${triad.inviteCode}',
+                      '«Размышления над Библией».\n'
+                      'Код для вступления: $code',
                       subject: 'Приглашение в тройку',
                     ),
                     icon: const Icon(Icons.ios_share),
@@ -381,10 +401,7 @@ class _MemberView extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 OutlinedButton.icon(
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: link));
-                    _snack(context, 'Ссылка скопирована');
-                  },
+                  onPressed: copy,
                   icon: const Icon(Icons.copy, size: 18),
                   label: const Text('Копировать'),
                 ),
