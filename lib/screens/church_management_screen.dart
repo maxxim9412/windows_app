@@ -4,6 +4,7 @@ import '../data/church_repository.dart';
 import '../models/church.dart';
 import '../utils/app_themes.dart';
 import 'church_theme_screen.dart';
+import 'monthly_schedule_screen.dart';
 
 /// Супер-админ: добавление/удаление церквей, их администраторов и оформления.
 class ChurchManagementScreen extends StatefulWidget {
@@ -159,6 +160,23 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
       ),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       children: [
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.edit_calendar_outlined),
+          title: const Text('График на месяц'),
+          subtitle: const Text('Отрывки QT и план чтения этой церкви'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MonthlyScheduleScreen(
+                churchId: c.id,
+                churchName: c.name,
+              ),
+            ),
+          ),
+        ),
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,

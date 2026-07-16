@@ -2,17 +2,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../data/church_repository.dart';
 import '../services/auth_service.dart';
 import '../utils/bible_books.dart';
 import '../utils/date_helpers.dart';
 import '../utils/reference_parser.dart';
 
-/// Удобное заполнение общего графика на месяц (только админ):
-/// вставляешь список QT и список чтения — раскладывается с 1 числа
-/// (QT по будням Пн–Пт, чтение 6 дней/нед кроме вс) и ПОЛНОСТЬЮ заменяет
-/// график месяца у всех.
+/// Удобное заполнение графика церкви на месяц (только админ): вставляешь список
+/// QT и список чтения — раскладывается с 1 числа (QT по будням Пн–Пт, чтение
+/// 6 дней/нед кроме вс) и ПОЛНОСТЬЮ заменяет график месяца у этой церкви.
+///
+/// Церковь задаётся явно и всегда видна в шапке. Раньше экран молча писал в
+/// церковь самого редактора: супер-админ, правивший «график новой церкви»,
+/// на деле переписывал график своей — и об этом ничто не предупреждало.
 class MonthlyScheduleScreen extends StatefulWidget {
-  const MonthlyScheduleScreen({super.key});
+  const MonthlyScheduleScreen({super.key, this.churchId, this.churchName});
+
+  /// Чей график правим. null — своя церковь (админ церкви из QT/Чтения).
+  final String? churchId;
+  final String? churchName;
 
   @override
   State<MonthlyScheduleScreen> createState() => _MonthlyScheduleScreenState();
@@ -23,8 +31,36 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
   final _qtCtrl = TextEditingController();
   final _readCtrl = TextEditingController();
 
+  String? _churchId;
+  String _churchName = '…';
+  bool _resolving = true;
+
   bool _previewed = false;
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolveChurch();
+  }
+
+  /// Определяем церковь один раз и запоминаем: дальше пишем только в неё.
+  Future<void> _resolveChurch() async {
+    var id = widget.churchId;
+    var name = widget.churchName;
+    if (id == null) {
+      id = await AuthService.instance.currentChurchId();
+      if (id != null && name == null) {
+        name = (await ChurchRepository.instance.byId(id))?.name;
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _churchId = id;
+      _churchName = name ?? (id == null ? 'не выбрана' : '—');
+      _resolving = false;
+    });
+  }
 
   @override
   void dispose() {
@@ -89,7 +125,7 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
   // --- Применение ---------------------------------------------------------
 
   Future<void> _apply() async {
-    final churchId = await AuthService.instance.currentChurchId();
+    final churchId = _churchId;
     if (churchId == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -146,7 +182,9 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
       await batch.commit();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('График на ${_monthName()} обновлён у всех.')),
+        SnackBar(
+            content: Text(
+                'График на ${_monthName()} обновлён у церкви «$_churchName».')),
       );
       Navigator.pop(context, true);
     } catch (e) {
@@ -166,7 +204,20 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
     final theme = Theme.of(context);
     final errors = _previewed ? _errors : const <String>[];
     return Scaffold(
-      appBar: AppBar(title: const Text('График на месяц')),
+      appBar: AppBar(
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('График на месяц'),
+            Text(
+              _resolving ? '…' : 'Церковь: $_churchName',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.outline),
+            ),
+          ],
+        ),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -190,7 +241,8 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
           Text(
             'Вставьте списки — они разложатся с 1 числа. QT — по будням (Пн–Пт), '
             'чтение — 6 дней в неделю (кроме воскресенья). Применение полностью '
-            'заменяет график этого месяца у всех.',
+            'заменяет график этого месяца у церкви «$_churchName» — и больше '
+            'ни у какой.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.outline),
           ),
