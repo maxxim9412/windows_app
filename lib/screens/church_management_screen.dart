@@ -56,6 +56,37 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
     if (ok == true) await ChurchRepository.instance.delete(c.id);
   }
 
+  Future<void> _renameChurch(Church c) async {
+    final ctrl = TextEditingController(text: c.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Переименовать церковь'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(
+            labelText: 'Название',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (v) => Navigator.pop(context, v.trim()),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Отмена')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+              child: const Text('Сохранить')),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty || name == c.name) return;
+    await ChurchRepository.instance.rename(c.id, name);
+    // Список — StreamBuilder, обновится сам.
+  }
+
   Future<void> _addAdmin(Church c) async {
     final ctrl = TextEditingController();
     final email = await showDialog<String>(
@@ -166,6 +197,15 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
       ),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       children: [
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.drive_file_rename_outline),
+          title: const Text('Переименовать'),
+          subtitle: Text(c.name),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => _renameChurch(c),
+        ),
         ListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,

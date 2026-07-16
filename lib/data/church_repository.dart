@@ -43,6 +43,11 @@ class ChurchRepository {
     await _col.doc(churchId).update({'themeColor': seed});
   }
 
+  /// Переименовать церковь (супер-админ).
+  Future<void> rename(String churchId, String name) async {
+    await _col.doc(churchId).update({'name': name.trim()});
+  }
+
   Future<void> addAdmin(String churchId, String uid) async {
     await _col.doc(churchId).update({
       'adminUids': FieldValue.arrayUnion([uid])
