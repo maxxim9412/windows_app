@@ -370,20 +370,10 @@ class _MemberView extends StatelessWidget {
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.onPrimaryContainer)),
             const SizedBox(height: 12),
-            // Код крупно, копируется по нажатию.
-            InkWell(
-              onTap: copy,
-              borderRadius: BorderRadius.circular(8),
-              child: Row(
-                children: [
-                  Text(code,
-                      style: theme.textTheme.headlineSmall
-                          ?.copyWith(letterSpacing: 3)),
-                  const SizedBox(width: 8),
-                  Icon(Icons.copy, size: 18, color: theme.colorScheme.outline),
-                ],
-              ),
-            ),
+            // Код крупным текстом. Копирование — на кнопке ниже.
+            Text(code,
+                style: theme.textTheme.headlineSmall
+                    ?.copyWith(letterSpacing: 3)),
             const SizedBox(height: 12),
             Row(
               children: [
