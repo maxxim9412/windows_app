@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 
-import '../data/bible_repository.dart';
 import '../data/progress_repository.dart';
 import '../data/reading_repository.dart';
-import '../models/reading.dart';
+import '../models/reading_chapter.dart';
 import '../services/auth_service.dart';
 import '../services/selected_day.dart';
 import '../utils/date_helpers.dart';
 import '../widgets/catch_up_banner.dart';
 import '../widgets/progress_calendar_button.dart';
+import 'chapter_reader_screen.dart';
 import 'monthly_schedule_screen.dart';
 
-typedef _ChapterText = ({int chapter, List<({int verse, String text})> verses});
-typedef _ReadingBlock = ({Reading reading, List<_ChapterText> chapters});
-
+/// План чтения на день — списком глав. Текст открывается отдельным экраном:
+/// день вроде «Быт 1–3» — это под сотню стихов, и одним полотном они читались
+/// тяжело.
 class ReadingScreen extends StatefulWidget {
   const ReadingScreen({super.key});
 
@@ -25,12 +25,14 @@ class _ReadingScreenState extends State<ReadingScreen> {
   /// Открытый день — общий с экраном QT (см. [SelectedDay]).
   DateTime _day = SelectedDay.instance.value;
 
-  List<_ReadingBlock> _blocks = const [];
-  bool _done = false;
+  List<ReadingChapter> _chapters = const [];
+  Set<String> _done = const {};
   bool _loading = true;
   bool _canEdit = false;
 
   bool get _isToday => _day == SelectedDay.today;
+  bool get _allDone =>
+      _chapters.isNotEmpty && _chapters.every((c) => _done.contains(c.key));
 
   @override
   void initState() {
@@ -55,35 +57,42 @@ class _ReadingScreenState extends State<ReadingScreen> {
     setState(() => _loading = true);
     _canEdit = await AuthService.instance.isChurchAdmin();
     final readings = await ReadingRepository.instance.forDate(_day);
-    final done = await ReadingRepository.instance.isDone(_day);
-
-    final blocks = <_ReadingBlock>[];
-    for (final r in readings) {
-      final chapters = <_ChapterText>[];
-      for (final ch in r.chapters) {
-        var verses = await BibleRepository.instance.chapterVerses(r.bookCode, ch);
-        if (r.hasVerses) {
-          verses = verses
-              .where((v) => v.verse >= r.verseStart! && v.verse <= r.verseEnd!)
-              .toList();
-        }
-        chapters.add((chapter: ch, verses: verses));
-      }
-      blocks.add((reading: r, chapters: chapters));
-    }
-
+    final done = await ReadingRepository.instance.doneChapters(_day);
     if (!mounted) return;
     setState(() {
-      _blocks = blocks;
+      _chapters = ReadingChapter.expandAll(readings);
       _done = done;
       _loading = false;
     });
   }
 
-  Future<void> _toggleDone(bool value) async {
-    setState(() => _done = value);
-    await ReadingRepository.instance.setDone(_day, value);
-    ProgressRepository.instance.invalidate(); // обновить значок календаря
+  Future<void> _toggle(ReadingChapter c) async {
+    final value = !_done.contains(c.key);
+    final next = Set<String>.from(_done);
+    value ? next.add(c.key) : next.remove(c.key);
+    setState(() => _done = next);
+
+    await ReadingRepository.instance.setChapterDone(
+      _day,
+      c.key,
+      value,
+      dayComplete: _chapters.every((x) => next.contains(x.key)),
+    );
+    ProgressRepository.instance.invalidate();
+  }
+
+  Future<void> _open(int index) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ChapterReaderScreen(
+          chapters: _chapters,
+          index: index,
+          day: _day,
+        ),
+      ),
+    );
+    _load(); // отметки могли измениться в читалке
   }
 
   @override
@@ -121,26 +130,29 @@ class _ReadingScreenState extends State<ReadingScreen> {
                           style: theme.textTheme.titleMedium
                               ?.copyWith(color: theme.colorScheme.primary)),
                       const SizedBox(height: 12),
-                      if (_blocks.isEmpty)
+                      if (_chapters.isEmpty)
                         _emptyCard(theme)
                       else ...[
-                        if (_done)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              children: [
-                                Icon(Icons.check_circle,
-                                    size: 18, color: theme.colorScheme.primary),
-                                const SizedBox(width: 6),
-                                Text('Прочитано',
-                                    style: theme.textTheme.labelLarge?.copyWith(
-                                        color: theme.colorScheme.primary)),
+                        if (_allDone) _doneRow(theme),
+                        Card(
+                          elevation: 0,
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          child: Column(
+                            children: [
+                              for (var i = 0; i < _chapters.length; i++) ...[
+                                if (i > 0) const Divider(height: 1),
+                                _chapterTile(theme, i),
                               ],
-                            ),
+                            ],
                           ),
-                        ..._blocks.expand((b) => _buildBlock(theme, b)),
-                        const SizedBox(height: 8),
-                        _doneButton(theme),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Нажмите на главу, чтобы читать. Кружок слева — '
+                          'отметка, если читали не здесь.',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: theme.colorScheme.outline),
+                        ),
                       ],
                       const SizedBox(height: 32),
                     ],
@@ -151,24 +163,40 @@ class _ReadingScreenState extends State<ReadingScreen> {
     );
   }
 
-  Widget _doneButton(ThemeData theme) {
-    if (_done) {
-      return OutlinedButton.icon(
-        onPressed: () => _toggleDone(false),
-        icon: const Icon(Icons.check_circle),
-        label: const Text('Прочитано — снять отметку'),
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+  Widget _doneRow(ThemeData theme) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, size: 18, color: theme.colorScheme.primary),
+            const SizedBox(width: 6),
+            Text('Прочитано',
+                style: theme.textTheme.labelLarge
+                    ?.copyWith(color: theme.colorScheme.primary)),
+          ],
         ),
       );
-    }
-    return FilledButton.icon(
-      onPressed: () => _toggleDone(true),
-      icon: const Icon(Icons.check),
-      label: const Text('ПРОЧИТАНО'),
-      style: FilledButton.styleFrom(
-        minimumSize: const Size.fromHeight(52),
+
+  Widget _chapterTile(ThemeData theme, int i) {
+    final c = _chapters[i];
+    final done = _done.contains(c.key);
+    return ListTile(
+      onTap: () => _open(i),
+      leading: IconButton(
+        tooltip: done ? 'Снять отметку' : 'Отметить прочитанной',
+        icon: Icon(
+          done ? Icons.check_circle : Icons.circle_outlined,
+          color: done ? theme.colorScheme.primary : theme.colorScheme.outline,
+        ),
+        onPressed: () => _toggle(c),
       ),
+      title: Text(
+        c.reference,
+        style: theme.textTheme.titleSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: done ? theme.colorScheme.outline : null,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
     );
   }
 
@@ -190,62 +218,4 @@ class _ReadingScreenState extends State<ReadingScreen> {
           ),
         ),
       );
-
-  List<Widget> _buildBlock(ThemeData theme, _ReadingBlock block) {
-    final widgets = <Widget>[
-      Text(block.reading.reference,
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w600)),
-      const SizedBox(height: 8),
-    ];
-
-    final anyText = block.chapters.any((c) => c.verses.isNotEmpty);
-    if (!anyText) {
-      widgets.add(Text(
-        'Текста этих глав нет в подключённой базе перевода.\n'
-        'Подключите полный Синодальный перевод (см. README).',
-        style:
-            theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.error),
-      ));
-      widgets.add(const SizedBox(height: 16));
-      return widgets;
-    }
-
-    for (final ch in block.chapters) {
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 4),
-        child: Text('Глава ${ch.chapter}',
-            style: theme.textTheme.titleMedium
-                ?.copyWith(color: theme.colorScheme.primary)),
-      ));
-      if (ch.verses.isEmpty) {
-        widgets.add(Text('— нет в базе —',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: theme.colorScheme.outline)));
-      } else {
-        for (final v in ch.verses) {
-          widgets.add(Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: RichText(
-              text: TextSpan(
-                style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-                children: [
-                  TextSpan(
-                    text: '${v.verse} ',
-                    style: TextStyle(
-                        fontSize: 11,
-                        color: theme.colorScheme.primary,
-                        fontWeight: FontWeight.bold),
-                  ),
-                  TextSpan(text: v.text),
-                ],
-              ),
-            ),
-          ));
-        }
-      }
-    }
-    widgets.add(const SizedBox(height: 16));
-    return widgets;
-  }
 }

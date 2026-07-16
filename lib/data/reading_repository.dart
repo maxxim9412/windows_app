@@ -125,4 +125,42 @@ class ReadingRepository {
       'readingDone': {dateKey(day): done},
     }, SetOptions(merge: true));
   }
+
+  // --- Отметки по главам -------------------------------------------------
+  // `readingChapters` — карта «дата → {ключ главы → прочитана}». Нужна, чтобы
+  // можно было прервать чтение на середине дня и вечером увидеть, где
+  // остановился. `readingDone` при этом остаётся отметкой дня целиком — на неё
+  // смотрит календарь, и её мы держим в согласии со списком глав.
+
+  /// Ключи глав, прочитанных в этот день.
+  Future<Set<String>> doneChapters(DateTime day) async {
+    final uid = AuthService.instance.uid;
+    if (uid == null) return {};
+    final doc = await _db.collection('users').doc(uid).get();
+    final byDate =
+        doc.data()?['readingChapters'] as Map<String, dynamic>? ?? const {};
+    final map = byDate[dateKey(day)] as Map<String, dynamic>? ?? const {};
+    return map.entries.where((e) => e.value == true).map((e) => e.key).toSet();
+  }
+
+  /// Отметить главу и заодно перезаписать отметку дня одной операцией: иначе
+  /// при обрыве между двумя записями день и главы разошлись бы.
+  ///
+  /// [dayComplete] считает вызывающий — только он знает полный список глав дня.
+  Future<void> setChapterDone(
+    DateTime day,
+    String chapterKey,
+    bool done, {
+    required bool dayComplete,
+  }) async {
+    final uid = AuthService.instance.uid;
+    if (uid == null) return;
+    final key = dateKey(day);
+    await _db.collection('users').doc(uid).set({
+      'readingChapters': {
+        key: {chapterKey: done},
+      },
+      'readingDone': {key: dayComplete},
+    }, SetOptions(merge: true));
+  }
 }

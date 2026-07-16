@@ -40,4 +40,23 @@ class Reading {
 
   Iterable<int> get chapters =>
       List.generate(chapterEnd - chapterStart + 1, (i) => chapterStart + i);
+
+  /// Ссылка на одну главу внутри записи: «Бытие 1» (а не «Бытие 1–3») или
+  /// «Псалтирь 118:1–88», если читается часть главы.
+  String referenceFor(int chapter) {
+    if (hasVerses) {
+      final vs =
+          verseStart == verseEnd ? '$verseStart' : '$verseStart–$verseEnd';
+      return '${bookName(bookCode)} $chapter:$vs';
+    }
+    return '${bookName(bookCode)} $chapter';
+  }
+
+  /// Ключ отметки о прочтении главы. Диапазон стихов входит в ключ: на один
+  /// день можно назначить и «Пс 118:1–88», и «Пс 118:89–176» — это одна глава,
+  /// но разные порции, и путать их отметки нельзя.
+  String chapterKey(int chapter) {
+    final base = '$bookCode-$chapter';
+    return hasVerses ? '$base:$verseStart-$verseEnd' : base;
+  }
 }
