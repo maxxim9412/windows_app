@@ -14,10 +14,21 @@ service cloud.firestore {
     }
 
     // Церкви. Читают все вошедшие (нужно для выбора при регистрации).
-    // Создаёт/удаляет/меняет админов — супер-админ.
+    // Создаёт/удаляет — супер-админ.
     match /churches/{churchId} {
       allow read: if request.auth != null;
-      allow create, update, delete: if isSuperAdmin();
+      allow create, delete: if isSuperAdmin();
+
+      // Правит церковь супер-админ. Её собственный админ — только поле `theme`
+      // (оформление для прихожан), и ничего больше: иначе он смог бы дописать
+      // себя или чужого в adminUids и захватить церковь, либо переименовать её.
+      // hasOnly проверяет ИЗМЕНЁННЫЕ ключи, поэтому подмена adminUids в том же
+      // запросе правило не пройдёт.
+      allow update: if isSuperAdmin()
+        || (request.auth != null
+            && request.auth.uid in resource.data.adminUids
+            && request.resource.data.diff(resource.data)
+                 .affectedKeys().hasOnly(['theme']));
 
       // График церкви: отрывки QT и чтение. Читают все, пишут админ церкви
       // (uid в adminUids) или супер-админ.

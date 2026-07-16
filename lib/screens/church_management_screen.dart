@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../data/church_repository.dart';
 import '../models/church.dart';
+import '../utils/app_themes.dart';
+import 'church_theme_screen.dart';
 
-/// Супер-админ: добавление/удаление церквей и их администраторов.
+/// Супер-админ: добавление/удаление церквей, их администраторов и оформления.
 class ChurchManagementScreen extends StatefulWidget {
   const ChurchManagementScreen({super.key});
 
@@ -148,7 +150,8 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
   Widget _churchTile(Church c) {
     return ExpansionTile(
       title: Text(c.name),
-      subtitle: Text('Админов: ${c.adminUids.length}'),
+      subtitle: Text(
+          'Админов: ${c.adminUids.length} · ${themeById(c.themeId).name}'),
       trailing: IconButton(
         tooltip: 'Удалить церковь',
         icon: const Icon(Icons.delete_outline),
@@ -156,6 +159,26 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
       ),
       childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       children: [
+        ListTile(
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.palette_outlined),
+          title: const Text('Оформление'),
+          subtitle: Text(themeById(c.themeId).name),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ChurchThemeScreen(
+                churchId: c.id,
+                churchName: c.name,
+                currentThemeId: c.themeId,
+              ),
+            ),
+          ),
+        ),
+        const Divider(height: 1),
+        const SizedBox(height: 8),
         FutureBuilder<Map<String, String>>(
           future: ChurchRepository.instance.namesFor(c.adminUids),
           builder: (context, snap) {

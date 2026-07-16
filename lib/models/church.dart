@@ -6,7 +6,15 @@ class Church {
   final String name;
   final List<String> adminUids;
 
-  const Church({required this.id, required this.name, required this.adminUids});
+  /// id оформления для прихожан (см. kAppThemes). null — тема по умолчанию.
+  final String? themeId;
+
+  const Church({
+    required this.id,
+    required this.name,
+    required this.adminUids,
+    this.themeId,
+  });
 
   factory Church.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final m = doc.data() ?? {};
@@ -14,6 +22,7 @@ class Church {
       id: doc.id,
       name: (m['name'] as String?) ?? '',
       adminUids: List<String>.from(m['adminUids'] as List? ?? const []),
+      themeId: m['theme'] as String?,
     );
   }
 }

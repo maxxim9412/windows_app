@@ -4,7 +4,9 @@ import '../data/church_repository.dart';
 import '../models/church.dart';
 import '../services/auth_service.dart';
 import '../services/triad_service.dart';
+import '../utils/app_themes.dart';
 import 'church_management_screen.dart';
+import 'church_theme_screen.dart';
 import 'triad_view.dart';
 
 /// Раздел «Тройка»: профиль, церковь и управление тройкой.
@@ -50,11 +52,17 @@ class _AccountScreenState extends State<AccountScreen> {
     });
   }
 
-  String get _churchName {
-    if (_churchId == null) return 'Не выбрана';
+  Church? get _myChurch {
+    if (_churchId == null) return null;
     final match = _churches.where((c) => c.id == _churchId);
-    return match.isEmpty ? '—' : match.first.name;
+    return match.isEmpty ? null : match.first;
   }
+
+  String get _churchName => _myChurch?.name ?? (_churchId == null ? 'Не выбрана' : '—');
+
+  /// Админ своей церкви — он и настраивает её оформление.
+  bool get _isChurchAdmin =>
+      _myChurch?.adminUids.contains(AuthService.instance.uid) ?? false;
 
   Future<void> _editName(String current) async {
     final ctrl = TextEditingController(text: current);
@@ -180,6 +188,29 @@ class _AccountScreenState extends State<AccountScreen> {
                   onPressed: _changeChurch, child: const Text('Изменить')),
             ),
           ),
+          if (_myChurch != null && _isChurchAdmin)
+            Card(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Оформление церкви'),
+                subtitle: Text(themeById(_myChurch!.themeId).name),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChurchThemeScreen(
+                        churchId: _myChurch!.id,
+                        churchName: _myChurch!.name,
+                        currentThemeId: _myChurch!.themeId,
+                      ),
+                    ),
+                  );
+                  _load();
+                },
+              ),
+            ),
           if (_isSuperAdmin)
             Card(
               color: theme.colorScheme.surfaceContainerHighest,
