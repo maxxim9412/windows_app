@@ -17,6 +17,11 @@ class ChurchManagementScreen extends StatefulWidget {
 class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
   final _newChurchCtrl = TextEditingController();
 
+  // Один раз, не в build: иначе перерисовка (например, при смене оформления)
+  // подсунула бы StreamBuilder новый поток и список церквей мигал бы спиннером.
+  late final Stream<List<Church>> _churches =
+      ChurchRepository.instance.streamChurches();
+
   @override
   void dispose() {
     _newChurchCtrl.dispose();
@@ -122,7 +127,7 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
           const Divider(height: 1),
           Expanded(
             child: StreamBuilder<List<Church>>(
-              stream: ChurchRepository.instance.streamChurches(),
+              stream: _churches,
               builder: (context, snap) {
                 if (!snap.hasData) {
                   return const Center(child: CircularProgressIndicator());

@@ -38,6 +38,22 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
 
   Triad get triad => widget.triad;
 
+  // Потоки заводим по одному разу, а не в build: пересоздание сбрасывает
+  // StreamBuilder в «жду данных» — экран моргал бы спиннером на каждой
+  // перерисовке. Сессия слушалась дважды — держим одну подписку на всех.
+  late final Stream<Triad?> _triadStream =
+      TriadService.instance.triadStream(triad.id);
+  late final Stream<Map<String, dynamic>?> _sessionStream =
+      TriadService.instance.sharedSessionStream(triad.id);
+
+  /// Заметка автора за день — ключ «uid|дата», чтобы при смене показываемой
+  /// заметки не плодить подписки.
+  final Map<String, Stream<Note?>> _noteStreams = {};
+
+  Stream<Note?> _noteStream(String uid, DateTime day) => _noteStreams.putIfAbsent(
+      '$uid|${dateKey(day)}',
+      () => NotesRepository.instance.memberNoteStream(uid, day));
+
   @override
   void initState() {
     super.initState();
@@ -297,7 +313,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
   Widget _scheduleSection(ThemeData theme) {
     final myUid = AuthService.instance.uid;
     return StreamBuilder<Triad?>(
-      stream: TriadService.instance.triadStream(triad.id),
+      stream: _triadStream,
       builder: (context, snap) {
         final t = snap.data ?? triad;
         final s = t.callSchedule;
@@ -438,7 +454,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
 
   Widget _presenterChips(ThemeData theme) {
     return StreamBuilder<Map<String, dynamic>?>(
-      stream: TriadService.instance.sharedSessionStream(triad.id),
+      stream: _sessionStream,
       builder: (context, snap) {
         final currentOwner = snap.data?['ownerUid'] as String?;
         return Wrap(
@@ -460,7 +476,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
 
   Widget _sharedNote(ThemeData theme) {
     return StreamBuilder<Map<String, dynamic>?>(
-      stream: TriadService.instance.sharedSessionStream(triad.id),
+      stream: _sessionStream,
       builder: (context, sessionSnap) {
         final session = sessionSnap.data;
         if (session == null || session['ownerUid'] == null) {
@@ -483,7 +499,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
         final day = DateTime.tryParse(dateStr) ?? _date;
 
         return StreamBuilder<Note?>(
-          stream: NotesRepository.instance.memberNoteStream(ownerUid, day),
+          stream: _noteStream(ownerUid, day),
           builder: (context, noteSnap) {
             final note = noteSnap.data;
             return Column(

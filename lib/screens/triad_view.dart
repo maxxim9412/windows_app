@@ -14,13 +14,25 @@ import '../utils/note_questions.dart';
 
 /// Раздел управления тройкой: создание, приглашение, участники, согласия,
 /// отметки «кто сделал заметку сегодня».
-class TriadView extends StatelessWidget {
+///
+/// Все потоки здесь создаются один раз в State, а НЕ в build. Иначе каждая
+/// перерисовка сверху (например, когда админ сменил оформление и перестроился
+/// MaterialApp) давала бы StreamBuilder новый поток — тот сбрасывался бы в
+/// «жду данных» и показывал спиннер вместо содержимого.
+class TriadView extends StatefulWidget {
   const TriadView({super.key});
+
+  @override
+  State<TriadView> createState() => _TriadViewState();
+}
+
+class _TriadViewState extends State<TriadView> {
+  late final Stream<Triad?> _stream = TriadService.instance.myTriadStream();
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<Triad?>(
-      stream: TriadService.instance.myTriadStream(),
+      stream: _stream,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Padding(
@@ -38,13 +50,21 @@ class TriadView extends StatelessWidget {
 
 // --- Нет тройки: ожидание заявки или вход/создание -----------------------
 
-class _NoTriadView extends StatelessWidget {
+class _NoTriadView extends StatefulWidget {
   const _NoTriadView();
+
+  @override
+  State<_NoTriadView> createState() => _NoTriadViewState();
+}
+
+class _NoTriadViewState extends State<_NoTriadView> {
+  late final Stream<String?> _stream =
+      TriadService.instance.pendingTriadIdStream();
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<String?>(
-      stream: TriadService.instance.pendingTriadIdStream(),
+      stream: _stream,
       builder: (context, snap) {
         final pendingId = snap.data;
         if (pendingId != null) return _PendingView(triadId: pendingId);
@@ -147,16 +167,25 @@ class _EntryView extends StatelessWidget {
   }
 }
 
-class _PendingView extends StatelessWidget {
+class _PendingView extends StatefulWidget {
   final String triadId;
   const _PendingView({required this.triadId});
+
+  @override
+  State<_PendingView> createState() => _PendingViewState();
+}
+
+class _PendingViewState extends State<_PendingView> {
+  late final Stream<Triad?> _stream =
+      TriadService.instance.triadStream(widget.triadId);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final uid = AuthService.instance.uid;
+    final triadId = widget.triadId;
     return StreamBuilder<Triad?>(
-      stream: TriadService.instance.triadStream(triadId),
+      stream: _stream,
       builder: (context, snap) {
         final triad = snap.data;
         final stillPending =
@@ -503,9 +532,23 @@ class _MemberView extends StatelessWidget {
 
 // --- Заметки участников за сегодня ---------------------------------------
 
-class _TodayNotes extends StatelessWidget {
+class _TodayNotes extends StatefulWidget {
   final Triad triad;
   const _TodayNotes({required this.triad});
+
+  @override
+  State<_TodayNotes> createState() => _TodayNotesState();
+}
+
+class _TodayNotesState extends State<_TodayNotes> {
+  final _today = dateOnly(DateTime.now());
+
+  /// Поток на участника — заводим по одному разу и держим, иначе перерисовка
+  /// пересоздавала бы подписки и отметки «сделал сегодня» мигали бы спиннером.
+  final Map<String, Stream<Note?>> _streams = {};
+
+  Stream<Note?> _streamFor(String uid) => _streams.putIfAbsent(
+      uid, () => NotesRepository.instance.memberNoteStream(uid, _today));
 
   void _view(BuildContext context, TriadMember? m, Note note, DateTime today) {
     showModalBottomSheet(
@@ -539,12 +582,13 @@ class _TodayNotes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final today = dateOnly(DateTime.now());
+    final today = _today;
+    final triad = widget.triad;
     return Column(
       children: triad.memberUids.map((uid) {
         final m = triad.members[uid];
         return StreamBuilder<Note?>(
-          stream: NotesRepository.instance.memberNoteStream(uid, today),
+          stream: _streamFor(uid),
           builder: (context, snap) {
             final note = snap.data;
             final done = note != null && note.isDone;

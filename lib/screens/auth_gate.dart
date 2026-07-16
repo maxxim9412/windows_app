@@ -8,13 +8,23 @@ import 'auth_screen.dart';
 import 'root_scaffold.dart';
 
 /// Показывает вход, если пользователь не авторизован, иначе — приложение.
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  // Поток заводим один раз: пересоздание сбросило бы StreamBuilder в «жду
+  // данных», а это здесь означает спиннер во весь экран и пересборку всего
+  // приложения под ним.
+  late final Stream<User?> _authState = AuthService.instance.authStateChanges();
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: AuthService.instance.authStateChanges(),
+      stream: _authState,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
