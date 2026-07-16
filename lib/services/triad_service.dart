@@ -314,6 +314,12 @@ class TriadService {
         .set({'pendingTriadId': FieldValue.delete()}, SetOptions(merge: true));
   }
 
+  /// Снять локальную метку «жду одобрения», НЕ трогая саму заявку. Вызывается,
+  /// когда заявку уже обработали (приняли или отклонили — в обоих случаях её
+  /// удалил тот, кто обрабатывал). Экран ожидания не должен удалять заявку сам:
+  /// раньше он это делал по кэшированному снимку и стирал только что созданную.
+  Future<void> dismissPending() => _clearPending();
+
   /// Одобрить заявку 3-го участника. Когда одобрили все существующие — принят.
   Future<void> approveJoin(String triadId, String joinerUid) async {
     final uid = _uid;

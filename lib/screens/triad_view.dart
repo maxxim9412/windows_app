@@ -179,6 +179,12 @@ class _PendingViewState extends State<_PendingView> {
   late final Stream<Triad?> _stream =
       TriadService.instance.triadStream(widget.triadId);
 
+  // Видели ли мы свою заявку хоть раз в этой сессии. Без этой защёлки нельзя
+  // отличить «заявку отклонили» от «первый снимок из кэша ещё без заявки»:
+  // Firestore сначала отдаёт кэш (там заявки может не быть), и раньше это
+  // ошибочно стирало только что созданную заявку.
+  bool _sawRequest = false;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -191,11 +197,15 @@ class _PendingViewState extends State<_PendingView> {
         final stillPending =
             triad?.joinRequests.any((r) => r.uid == uid) ?? false;
         final becameMember = triad?.memberUids.contains(uid) ?? false;
+        if (stillPending) _sawRequest = true;
 
-        // Если приняли или заявки больше нет — подчищаем pending.
-        if (triad != null && (becameMember || !stillPending)) {
+        // Заявка обработана: приняли (стали участником) или отклонили (заявка
+        // была и пропала). Снимаем только локальную метку ожидания — саму
+        // заявку отсюда не трогаем, её уже удалил тот, кто обработал.
+        final resolved = becameMember || (_sawRequest && !stillPending);
+        if (resolved) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            TriadService.instance.cancelJoinRequest(triadId);
+            TriadService.instance.dismissPending();
           });
         }
 
