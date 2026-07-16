@@ -7,6 +7,7 @@ import '../models/triad.dart';
 import '../services/auth_service.dart';
 import '../services/ring_service.dart';
 import '../services/triad_service.dart';
+import '../widgets/phone_prompt_banner.dart';
 import '../widgets/update_banner.dart';
 import 'account_screen.dart';
 import 'home_screen.dart';
@@ -127,6 +128,7 @@ class _RootScaffoldState extends State<RootScaffold> {
       body: Column(
         children: [
           const UpdateBanner(),
+          const PhonePromptBanner(),
           Expanded(child: IndexedStack(index: _index, children: _screens)),
         ],
       ),
