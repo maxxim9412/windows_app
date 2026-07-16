@@ -5,11 +5,17 @@ import '../services/auth_service.dart';
 
 /// Прихожанин церкви — для списка «без тройки».
 class ChurchPerson {
-  const ChurchPerson({required this.uid, required this.name, required this.email});
+  const ChurchPerson({
+    required this.uid,
+    required this.name,
+    required this.email,
+    this.phone = '',
+  });
 
   final String uid;
   final String name;
   final String email;
+  final String phone;
 
   String get displayName => name.trim().isEmpty ? 'Без имени' : name;
 }
@@ -75,6 +81,7 @@ class ReportRepository {
                   uid: d.id,
                   name: (d.data()['name'] as String?) ?? '',
                   email: (d.data()['email'] as String?) ?? '',
+                  phone: (d.data()['phone'] as String?) ?? '',
                 ))
             .toList()
           ..sort((a, b) => a.displayName.compareTo(b.displayName));

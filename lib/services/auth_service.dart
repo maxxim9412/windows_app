@@ -21,6 +21,7 @@ class AuthService {
     required String email,
     required String password,
     required String name,
+    required String phone,
     String? churchId,
   }) async {
     final cred = await _auth.createUserWithEmailAndPassword(
@@ -33,6 +34,7 @@ class AuthService {
     await _db.collection('users').doc(user.uid).set({
       'email': email.trim().toLowerCase(),
       'name': name.trim(),
+      'phone': phone.trim(),
       'churchId': churchId,
       'createdAt': FieldValue.serverTimestamp(),
     });
@@ -48,16 +50,26 @@ class AuthService {
     return doc.data();
   }
 
-  /// Изменить имя (обновляет и Auth, и профиль в Firestore).
-  Future<void> updateName(String name) async {
+  /// Изменить имя и телефон (обновляет и Auth, и профиль в Firestore).
+  ///
+  /// Копию этих данных держит ещё и документ тройки — её обновляет
+  /// TriadService.syncMyProfileToTriad, который вызывается следом. Иначе тройка
+  /// продолжила бы показывать старое имя и телефон.
+  Future<void> updateProfile({String? name, String? phone}) async {
     final user = _auth.currentUser;
     if (user == null) return;
-    await user.updateDisplayName(name.trim());
-    await user.reload();
+    final data = <String, dynamic>{};
+    if (name != null) {
+      await user.updateDisplayName(name.trim());
+      await user.reload();
+      data['name'] = name.trim();
+    }
+    if (phone != null) data['phone'] = phone.trim();
+    if (data.isEmpty) return;
     await _db
         .collection('users')
         .doc(user.uid)
-        .set({'name': name.trim()}, SetOptions(merge: true));
+        .set(data, SetOptions(merge: true));
   }
 
   Future<void> signIn({required String email, required String password}) async {

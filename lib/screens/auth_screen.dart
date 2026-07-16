@@ -17,6 +17,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
 
   bool _isRegister = false;
   bool _busy = false;
@@ -43,6 +44,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
@@ -58,6 +60,7 @@ class _AuthScreenState extends State<AuthScreen> {
           email: _emailCtrl.text,
           password: _passwordCtrl.text,
           name: _nameCtrl.text,
+          phone: _phoneCtrl.text,
           churchId: _churchId,
         );
       } else {
@@ -141,6 +144,31 @@ class _AuthScreenState extends State<AuthScreen> {
                           validator: (v) => (v == null || v.trim().isEmpty)
                               ? 'Введите имя'
                               : null,
+                        ),
+                      ),
+                    if (_isRegister)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: TextFormField(
+                          controller: _phoneCtrl,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Телефон',
+                            prefixIcon: Icon(Icons.phone_outlined),
+                            border: OutlineInputBorder(),
+                            helperText: 'Виден только вашей тройке и '
+                                'администраторам церкви',
+                            helperMaxLines: 2,
+                          ),
+                          validator: (v) {
+                            final s = (v ?? '').trim();
+                            if (s.isEmpty) return 'Введите телефон';
+                            // Не придираемся к формату — записи бывают разные,
+                            // важно лишь, чтобы по номеру можно было позвонить.
+                            final digits =
+                                s.replaceAll(RegExp(r'[^0-9]'), '').length;
+                            return digits < 10 ? 'Похоже, номер неполный' : null;
+                          },
                         ),
                       ),
                     if (_isRegister)

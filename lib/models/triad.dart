@@ -1,12 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Профиль участника (денормализованная копия для отображения).
+/// Профиль участника — денормализованная копия для отображения.
+///
+/// Копия, а не ссылка на профиль, потому что правила не дают участникам читать
+/// профили друг друга. Значит, при смене имени или телефона копию надо
+/// обновлять — см. TriadService.syncMyProfileToTriad.
 class TriadMember {
   final String uid;
   final String name;
   final String email;
-  const TriadMember(
-      {required this.uid, required this.name, required this.email});
+  final String phone;
+  const TriadMember({
+    required this.uid,
+    required this.name,
+    required this.email,
+    this.phone = '',
+  });
 }
 
 /// Заявка на вступление третьего участника (нужно одобрение существующих).
@@ -14,12 +23,15 @@ class JoinRequest {
   final String uid;
   final String name;
   final String email;
+  final String phone;
   final List<String> approvals;
-  const JoinRequest(
-      {required this.uid,
-      required this.name,
-      required this.email,
-      required this.approvals});
+  const JoinRequest({
+    required this.uid,
+    required this.name,
+    required this.email,
+    this.phone = '',
+    required this.approvals,
+  });
 }
 
 /// Расписание звонков тройки (дни недели + время).
@@ -119,6 +131,7 @@ class Triad {
         uid: uid,
         name: (m['name'] as String?) ?? '',
         email: (m['email'] as String?) ?? '',
+        phone: (m['phone'] as String?) ?? '',
       );
     });
 
@@ -129,6 +142,7 @@ class Triad {
         uid: uid,
         name: (m['name'] as String?) ?? '',
         email: (m['email'] as String?) ?? '',
+        phone: (m['phone'] as String?) ?? '',
         approvals: List<String>.from(m['approvals'] as List? ?? const []),
       ));
     });

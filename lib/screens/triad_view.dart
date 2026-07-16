@@ -287,7 +287,12 @@ class _MemberView extends StatelessWidget {
               title: Text(
                   '${m?.name.isNotEmpty == true ? m!.name : 'Без имени'}'
                   '${isMe ? ' (вы)' : ''}'),
-              subtitle: Text(m?.email ?? ''),
+              // Телефон — резервная связь: почта в срочном случае бесполезна.
+              subtitle: Text([
+                if (m?.email.isNotEmpty ?? false) m!.email,
+                if (m?.phone.isNotEmpty ?? false) m!.phone,
+              ].join('\n')),
+              isThreeLine: m?.phone.isNotEmpty ?? false,
               trailing: canRemove
                   ? IconButton(
                       tooltip: 'Предложить удалить',
@@ -395,6 +400,8 @@ class _MemberView extends StatelessWidget {
             Text('Заявка на вступление: ${r.name}',
                 style: const TextStyle(fontWeight: FontWeight.w600)),
             Text(r.email, style: theme.textTheme.bodySmall),
+            if (r.phone.isNotEmpty)
+              Text(r.phone, style: theme.textTheme.bodySmall),
             Text('Одобрений: ${r.approvals.length}/${triad.memberCount}',
                 style: theme.textTheme.bodySmall),
             const SizedBox(height: 8),

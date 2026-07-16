@@ -114,7 +114,29 @@ class TriadService {
       'email': (p?['email'] as String?) ??
           AuthService.instance.currentUser?.email ??
           '',
+      'phone': (p?['phone'] as String?) ?? '',
     };
+  }
+
+  /// Обновить свою копию в документе тройки после правки профиля.
+  ///
+  /// Тройка хранит имя, почту и телефон копией: правила не дают участникам
+  /// читать профили друг друга. Без этого вызова тройка навсегда осталась бы со
+  /// старыми данными — до этой правки так и было со сменой имени.
+  Future<void> syncMyProfileToTriad() async {
+    try {
+      final uid = _uid;
+      if (uid == null) return;
+      final triadId = await currentTriadId();
+      if (triadId == null) return;
+      final profile = await _myProfile();
+      await _db
+          .collection('triads')
+          .doc(triadId)
+          .update({'members.$uid': profile});
+    } catch (_) {
+      // Не критично: копия обновится при следующей правке профиля.
+    }
   }
 
   /// Создать новую тройку (я — первый участник). Церковь обязательна: тройка
@@ -254,6 +276,7 @@ class TriadService {
           'joinRequests.$uid': {
             'name': profile['name'],
             'email': profile['email'],
+            'phone': profile['phone'],
             'approvals': <String>[],
           },
         });
@@ -314,7 +337,11 @@ class TriadService {
       if (allApproved) {
         tx.update(ref, {
           'memberUids': FieldValue.arrayUnion([joinerUid]),
-          'members.$joinerUid': {'name': jr['name'], 'email': jr['email']},
+          'members.$joinerUid': {
+            'name': jr['name'],
+            'email': jr['email'],
+            'phone': jr['phone'] ?? '',
+          },
           'joinRequests.$joinerUid': FieldValue.delete(),
         });
       } else {

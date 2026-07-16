@@ -127,7 +127,8 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                 _withoutTriadSection(theme, r.withoutTriad!),
               const SizedBox(height: 12),
               Text(
-                'Нажмите на человека, чтобы скопировать его почту.',
+                'Нажмите на человека, чтобы скопировать его телефон '
+                '(или почту, если телефон не указан).',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),
               ),
@@ -183,17 +184,20 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
         ),
       );
 
-  void _copy(String text, String what) {
+  void _copy(String text, String message) {
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text('$what скопирована')));
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
-  /// Строка человека: имя и почта. Нажатие копирует почту — связаться можно
-  /// прямо отсюда, не выясняя контакты на стороне.
-  Widget _personRow(ThemeData theme, String name, String email) {
+  /// Строка человека: имя, почта, телефон. Нажатие копирует телефон, если он
+  /// есть, иначе почту — по телефону связываются быстрее.
+  Widget _personRow(ThemeData theme, String name, String email,
+      [String phone = '']) {
+    final primary = phone.isNotEmpty ? phone : email;
+    final label = phone.isNotEmpty ? 'Телефон скопирован' : 'Почта скопирована';
     return InkWell(
-      onTap: email.isEmpty ? null : () => _copy(email, 'Почта'),
+      onTap: primary.isEmpty ? null : () => _copy(primary, label),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
@@ -208,10 +212,14 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                     Text(email,
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: theme.colorScheme.outline)),
+                  if (phone.isNotEmpty)
+                    Text(phone,
+                        style: theme.textTheme.bodySmall
+                            ?.copyWith(color: theme.colorScheme.primary)),
                 ],
               ),
             ),
-            if (email.isNotEmpty)
+            if (primary.isNotEmpty)
               Icon(Icons.copy_outlined,
                   size: 16, color: theme.colorScheme.outline),
           ],
@@ -254,7 +262,8 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                 ),
                 if (emails.length > 1)
                   TextButton.icon(
-                    onPressed: () => _copy(emails.join(', '), 'Почты тройки'),
+                    onPressed: () =>
+                        _copy(emails.join(', '), 'Почты тройки скопированы'),
                     icon: const Icon(Icons.copy_outlined, size: 16),
                     label: const Text('Все почты'),
                   ),
@@ -268,6 +277,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                     ? t.members[uid]!.name
                     : 'Без имени',
                 t.members[uid]?.email ?? '',
+                t.members[uid]?.phone ?? '',
               ),
             if (t.joinRequests.isNotEmpty) ...[
               const SizedBox(height: 6),
@@ -299,7 +309,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                         .where((p) => p.email.isNotEmpty)
                         .map((p) => p.email)
                         .join(', '),
-                    'Почты'),
+                    'Почты скопированы'),
                 icon: const Icon(Icons.copy_outlined, size: 16),
                 label: const Text('Все почты'),
               ),
@@ -313,7 +323,8 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Column(
               children: [
-                for (final p in people) _personRow(theme, p.displayName, p.email),
+                for (final p in people)
+                  _personRow(theme, p.displayName, p.email, p.phone),
               ],
             ),
           ),

@@ -66,36 +66,61 @@ class _AccountScreenState extends State<AccountScreen> {
   bool get _isChurchAdmin =>
       _myChurch?.adminUids.contains(AuthService.instance.uid) ?? false;
 
-  Future<void> _editName(String current) async {
-    final ctrl = TextEditingController(text: current);
-    final name = await showDialog<String>(
+  Future<void> _editProfile(String currentName, String currentPhone) async {
+    final nameCtrl = TextEditingController(text: currentName);
+    final phoneCtrl = TextEditingController(text: currentPhone);
+    final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Ваше имя'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          textCapitalization: TextCapitalization.words,
-          decoration: const InputDecoration(
-            hintText: 'Как вас видят в тройке',
-            border: OutlineInputBorder(),
-          ),
+        title: const Text('Ваши данные'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameCtrl,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: const InputDecoration(
+                labelText: 'Имя',
+                hintText: 'Как вас видят в тройке',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: phoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Телефон',
+                helperText: 'Виден только вашей тройке и администраторам',
+                helperMaxLines: 2,
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Отмена')),
           FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Сохранить'),
           ),
         ],
       ),
     );
-    if (name != null && name.isNotEmpty) {
-      await AuthService.instance.updateName(name);
-      _load();
-    }
+    if (ok != true) return;
+
+    final name = nameCtrl.text.trim();
+    await AuthService.instance.updateProfile(
+      name: name.isEmpty ? null : name,
+      phone: phoneCtrl.text.trim(),
+    );
+    // Тройка хранит копию имени и телефона — обновляем и её, иначе участники
+    // продолжат видеть старые данные.
+    await TriadService.instance.syncMyProfileToTriad();
+    _load();
   }
 
   Future<void> _changeChurch() async {
@@ -187,6 +212,7 @@ class _AccountScreenState extends State<AccountScreen> {
     final name = (_profile?['name'] as String?)?.trim();
     final displayName = (name != null && name.isNotEmpty) ? name : 'Без имени';
     final email = user?.email ?? (_profile?['email'] as String?) ?? '';
+    final phone = ((_profile?['phone'] as String?) ?? '').trim();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Тройка')),
@@ -205,11 +231,12 @@ class _AccountScreenState extends State<AccountScreen> {
                 ),
               ),
               title: Text(displayName),
-              subtitle: Text(email),
+              subtitle: Text(phone.isEmpty ? email : '$email\n$phone'),
+              isThreeLine: phone.isNotEmpty,
               trailing: IconButton(
-                tooltip: 'Изменить имя',
+                tooltip: 'Изменить имя и телефон',
                 icon: const Icon(Icons.edit_outlined),
-                onPressed: () => _editName(name ?? ''),
+                onPressed: () => _editProfile(name ?? '', phone),
               ),
             ),
           ),
