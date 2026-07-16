@@ -25,6 +25,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   List<Church> _churches = const [];
   String? _churchId;
+  bool _churchesLoading = true;
+  bool _churchesFailed = false;
 
   @override
   void initState() {
@@ -33,10 +35,28 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _loadChurches() async {
+    setState(() {
+      _churchesLoading = true;
+      _churchesFailed = false;
+    });
     try {
       final list = await ChurchRepository.instance.allChurches();
-      if (mounted) setState(() => _churches = list);
-    } catch (_) {}
+      if (mounted) {
+        setState(() {
+          _churches = list;
+          _churchesLoading = false;
+        });
+      }
+    } catch (_) {
+      // Молча прятать нельзя: пустая выпадашка без объяснения не даёт
+      // зарегистрироваться, а причина не видна.
+      if (mounted) {
+        setState(() {
+          _churchesLoading = false;
+          _churchesFailed = true;
+        });
+      }
+    }
   }
 
   @override
@@ -99,6 +119,72 @@ class _AuthScreenState extends State<AuthScreen> {
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// Церковь обязательна: от неё зависит и график отрывков, и тройка (она
+  /// может быть только из одной церкви). Показываем загрузку/ошибку явно —
+  /// пустая выпадашка без причины просто блокировала бы регистрацию.
+  Widget _buildChurchField() {
+    if (_churchesLoading) {
+      return const InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Церковь',
+          prefixIcon: Icon(Icons.church_outlined),
+          border: OutlineInputBorder(),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 12),
+            Text('Загрузка списка церквей…'),
+          ],
+        ),
+      );
+    }
+    if (_churchesFailed || _churches.isEmpty) {
+      final theme = Theme.of(context);
+      return InputDecorator(
+        decoration: const InputDecoration(
+          labelText: 'Церковь',
+          prefixIcon: Icon(Icons.church_outlined),
+          border: OutlineInputBorder(),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _churchesFailed
+                    ? 'Не удалось загрузить список церквей.'
+                    : 'Список церквей пуст — обратитесь к администратору.',
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: theme.colorScheme.error),
+              ),
+            ),
+            TextButton(
+                onPressed: _loadChurches, child: const Text('Повторить')),
+          ],
+        ),
+      );
+    }
+    return DropdownButtonFormField<String>(
+      initialValue: _churchId,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Церковь',
+        prefixIcon: Icon(Icons.church_outlined),
+        border: OutlineInputBorder(),
+        helperText: 'Отрывки и тройка — внутри вашей церкви',
+      ),
+      items: [
+        for (final c in _churches)
+          DropdownMenuItem(value: c.id, child: Text(c.name)),
+      ],
+      onChanged: (v) => setState(() => _churchId = v),
+      validator: (v) => v == null ? 'Выберите церковь' : null,
+    );
   }
 
   @override
@@ -174,25 +260,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     if (_isRegister)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        // Церковь обязательна: от неё зависит и график отрывков,
-                        // и тройка (она может быть только из одной церкви).
-                        child: DropdownButtonFormField<String>(
-                          initialValue: _churchId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Церковь',
-                            prefixIcon: Icon(Icons.church_outlined),
-                            border: OutlineInputBorder(),
-                            helperText: 'Отрывки и тройка — внутри вашей церкви',
-                          ),
-                          items: [
-                            for (final c in _churches)
-                              DropdownMenuItem(value: c.id, child: Text(c.name)),
-                          ],
-                          onChanged: (v) => setState(() => _churchId = v),
-                          validator: (v) =>
-                              v == null ? 'Выберите церковь' : null,
-                        ),
+                        child: _buildChurchField(),
                       ),
                     TextFormField(
                       controller: _emailCtrl,
