@@ -98,8 +98,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onAnyChanged() {
     if (!_dirty) setState(() => _dirty = true);
+    // Автосохранение — тихая подстраховка: срабатывает через секунду после
+    // паузы в наборе, чтобы не терять текст. Кнопка при этом остаётся живой.
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 600), _saveNote);
+    _debounce = Timer(const Duration(milliseconds: 1000), _saveNote);
   }
 
   Future<void> _saveNote() async {
@@ -120,9 +122,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Ручное сохранение по кнопке. Работает всегда: если правки есть — пишем,
+  /// если автосохранение уже успело — просто подтверждаем. В обоих случаях
+  /// даём видимый отклик, чтобы кнопка не ощущалась мёртвой.
   Future<void> _saveNow() async {
     _debounce?.cancel();
-    await _saveNote();
+    if (_dirty) await _saveNote();
+    if (mounted && !_dirty) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(const SnackBar(
+          content: Text('Заметка сохранена'),
+          duration: Duration(seconds: 1),
+        ));
+    }
   }
 
   @override
@@ -207,8 +220,11 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
     final saved = !_dirty && _hasText;
+    // Кнопка активна всегда (кроме момента записи): нажатие сохраняет сразу или
+    // подтверждает уже сохранённое. Иначе автосохранение гасило её и она
+    // казалась нерабочей.
     return FilledButton.icon(
-      onPressed: _dirty ? _saveNow : null,
+      onPressed: _saveNow,
       icon: Icon(saved ? Icons.check_circle : Icons.check),
       label: Text(saved ? 'Сохранено' : 'Сохранить'),
       style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
