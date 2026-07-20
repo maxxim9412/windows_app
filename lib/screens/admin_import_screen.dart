@@ -101,7 +101,7 @@ class _AdminImportScreenState extends State<AdminImportScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               'Примеры формата:\nИн 3:16-17\nМф 5:3-10\nПс 22:1-6\n1 Кор 13:1-7',

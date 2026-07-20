@@ -155,10 +155,10 @@ class _ProgressCalendarScreenState extends State<ProgressCalendarScreen> {
 
     return InkWell(
       onTap: selectable ? () => Navigator.pop(context, day) : null,
-      borderRadius: BorderRadius.circular(4),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(8),
           color: isSelected
               ? theme.colorScheme.primaryContainer
               : Colors.transparent,

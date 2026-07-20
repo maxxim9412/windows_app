@@ -135,7 +135,7 @@ class _Preview extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: scheme.outlineVariant),
       ),
       padding: const EdgeInsets.all(14),
@@ -162,7 +162,7 @@ class _Preview extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(8),
             ),
             padding: const EdgeInsets.all(10),
             child: Column(
@@ -186,7 +186,7 @@ class _Preview extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               color: scheme.primary,
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(18),
             ),
             padding: const EdgeInsets.symmetric(vertical: 9),
             child: Text('Сохранить',

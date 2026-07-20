@@ -304,7 +304,7 @@ class _PassageEditorState extends State<_PassageEditor> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(_preview!, style: theme.textTheme.bodyMedium),
               ),
