@@ -29,68 +29,85 @@ class _RootScaffoldState extends State<RootScaffold> {
 
   static const _screens = [HomeScreen(), ReadingScreen(), AccountScreen()];
 
-  StreamSubscription<Triad?>? _triadSub;
-  StreamSubscription<Map<String, dynamic>?>? _callSub;
-  Triad? _triad;
-  String? _watchedTriadId;
-  bool _prevActive = false;
+  // Человек может быть в нескольких тройках — следим за звонком каждой
+  // отдельно: звонки не смешиваются, у каждой тройки свой канал.
+  StreamSubscription<List<Triad>>? _triadsSub;
+  final Map<String, StreamSubscription<Map<String, dynamic>?>> _callSubs = {};
+  final Map<String, Triad> _triads = {};
+  final Map<String, bool> _prevActive = {};
   bool _showingIncoming = false;
+  String? _incomingTriadId; // чей звонок сейчас звенит
 
   @override
   void initState() {
     super.initState();
-    _triadSub = TriadService.instance.myTriadStream().listen(_onTriad);
+    _triadsSub = TriadService.instance.myTriadsStream().listen(_onTriads);
   }
 
   @override
   void dispose() {
-    _triadSub?.cancel();
-    _callSub?.cancel();
+    _triadsSub?.cancel();
+    for (final s in _callSubs.values) {
+      s.cancel();
+    }
     RingService.instance.stop();
     super.dispose();
   }
 
-  void _onTriad(Triad? triad) {
-    _triad = triad;
-    if (triad?.id != _watchedTriadId) {
-      _callSub?.cancel();
-      _watchedTriadId = triad?.id;
-      _prevActive = false;
-      if (triad != null) {
-        _callSub = TriadService.instance
-            .callStateStream(triad.id)
-            .listen(_onCallState);
+  void _onTriads(List<Triad> triads) {
+    _triads
+      ..clear()
+      ..addEntries(triads.map((t) => MapEntry(t.id, t)));
+    final ids = _triads.keys.toSet();
+    // Отписаться от троек, из которых вышли.
+    for (final id in _callSubs.keys.toList()) {
+      if (!ids.contains(id)) {
+        _callSubs.remove(id)?.cancel();
+        _prevActive.remove(id);
       }
+    }
+    // Подписаться на новые.
+    for (final t in triads) {
+      _callSubs.putIfAbsent(t.id, () {
+        _prevActive[t.id] = false;
+        return TriadService.instance
+            .callStateStream(t.id)
+            .listen((s) => _onCallState(t.id, s));
+      });
     }
   }
 
-  void _onCallState(Map<String, dynamic>? state) {
+  void _onCallState(String triadId, Map<String, dynamic>? state) {
     if (kIsWeb) return; // в вебе звонков нет
     final active = (state?['active'] as bool?) ?? false;
     final startedBy = state?['startedBy'] as String?;
     final myUid = AuthService.instance.uid;
+    final triad = _triads[triadId];
 
     if (active &&
-        !_prevActive &&
+        !(_prevActive[triadId] ?? false) &&
         startedBy != myUid &&
         !_showingIncoming &&
-        TriadService.isWithinSchedule(_triad?.callSchedule, DateTime.now())) {
-      _showIncoming();
+        TriadService.isWithinSchedule(triad?.callSchedule, DateTime.now())) {
+      _showIncoming(triad);
     }
-    if (!active) {
+    // Завершение звонка гасит звонок только СВОЕЙ тройки: событие «не активен»
+    // из другой тройки не должно обрывать звенящий вызов.
+    if (!active && _incomingTriadId == triadId) {
       RingService.instance.stop();
       if (_showingIncoming && mounted) {
         Navigator.of(context, rootNavigator: true).pop();
         _showingIncoming = false;
       }
+      _incomingTriadId = null;
     }
-    _prevActive = active;
+    _prevActive[triadId] = active;
   }
 
-  Future<void> _showIncoming() async {
-    final triad = _triad;
+  Future<void> _showIncoming(Triad? triad) async {
     if (triad == null || !mounted) return;
     _showingIncoming = true;
+    _incomingTriadId = triad.id;
     RingService.instance.start();
 
     final answer = await showDialog<bool>(
@@ -112,6 +129,7 @@ class _RootScaffoldState extends State<RootScaffold> {
     );
 
     _showingIncoming = false;
+    _incomingTriadId = null;
     await RingService.instance.stop();
     if (answer == true && mounted) {
       Navigator.push(

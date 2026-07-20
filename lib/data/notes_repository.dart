@@ -79,7 +79,11 @@ class NotesRepository {
       unawaited(ref.delete().catchError(_logError));
       return;
     }
+    // Кому видна заметка: участникам ВСЕХ моих троек (человек может быть в
+    // нескольких). visibleTo проверяется правилом; triadId остаётся для
+    // заметок и клиентов старого формата.
     final triadId = await TriadService.instance.currentTriadId();
+    final visibleTo = await TriadService.instance.visibleToUids();
     unawaited(ref.set({
       'a1': note.answers[0],
       'a2': note.answers[1],
@@ -87,6 +91,7 @@ class NotesRepository {
       'a4': note.answers[3],
       'done': note.isDone,
       'triadId': triadId,
+      'visibleTo': visibleTo,
       'updatedAt': note.updatedAt,
     }).catchError(_logError));
   }

@@ -49,6 +49,17 @@ service cloud.firestore {
         allow read: if request.auth != null;
         allow write: if isSuperAdmin() || isChurchAdmin();
       }
+
+      // Разрешение на несколько троек: {limit: N} на прихожанина. Ставит админ
+      // церкви (или супер-админ), сам человек может лишь прочитать своё —
+      // поэтому это отдельный документ, а не поле профиля: профиль человек
+      // пишет сам и мог бы поднять лимит себе.
+      match /triadAllowances/{memberUid} {
+        allow get: if request.auth != null
+          && (request.auth.uid == memberUid || isSuperAdmin() || isChurchAdmin());
+        allow list: if isSuperAdmin() || isChurchAdmin();
+        allow write: if isSuperAdmin() || isChurchAdmin();
+      }
     }
 
     // Профиль пользователя: email, имя, церковь, отметки чтения (readingDone).
@@ -65,11 +76,15 @@ service cloud.firestore {
       allow write: if request.auth != null && request.auth.uid == uid;
 
       // Заметки: писать может только владелец; читать — владелец и участники
-      // его тройки (по полю triadId в заметке).
+      // его троек. Основной механизм — список visibleTo в самой заметке
+      // (объединение участников всех троек автора: человек может быть в
+      // нескольких). Клауза с triadId оставлена для заметок старого формата,
+      // где visibleTo ещё нет.
       match /notes/{noteId} {
         allow write: if request.auth != null && request.auth.uid == uid;
         allow read: if request.auth != null && (
           request.auth.uid == uid ||
+          request.auth.uid in resource.data.get('visibleTo', []) ||
           (resource.data.triadId != null &&
            request.auth.uid in
              get(/databases/$(database)/documents/triads/$(resource.data.triadId)).data.memberUids)

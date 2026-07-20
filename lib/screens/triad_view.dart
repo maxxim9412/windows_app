@@ -12,8 +12,9 @@ import '../services/triad_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
 
-/// Раздел управления тройкой: создание, приглашение, участники, согласия,
-/// отметки «кто сделал заметку сегодня».
+/// Раздел троек: человек может состоять в нескольких (вторую и далее открывает
+/// админ церкви). Одна тройка показывается развёрнуто как раньше; несколько —
+/// сворачивающимся списком, чтобы экран не разрастался.
 ///
 /// Все потоки здесь создаются один раз в State, а НЕ в build. Иначе каждая
 /// перерисовка сверху (например, когда админ сменил оформление и перестроился
@@ -27,11 +28,16 @@ class TriadView extends StatefulWidget {
 }
 
 class _TriadViewState extends State<TriadView> {
-  late final Stream<Triad?> _stream = TriadService.instance.myTriadStream();
+  late final Stream<List<Triad>> _stream = TriadService.instance.myTriadsStream();
+  late final Stream<String?> _pendingStream =
+      TriadService.instance.pendingTriadIdStream();
+  // Лимит читается один раз на показ вкладки: меняется он редко (действием
+  // админа), после его повышения достаточно перезайти на вкладку.
+  late final Future<int> _limitFuture = TriadService.instance.myTriadLimit();
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<Triad?>(
+    return StreamBuilder<List<Triad>>(
       stream: _stream,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
@@ -40,89 +46,109 @@ class _TriadViewState extends State<TriadView> {
             child: Center(child: CircularProgressIndicator()),
           );
         }
-        final triad = snap.data;
-        if (triad != null) return _MemberView(triad: triad);
-        return const _NoTriadView();
+        final triads = snap.data ?? const <Triad>[];
+        return StreamBuilder<String?>(
+          stream: _pendingStream,
+          builder: (context, pendSnap) {
+            final pendingId = pendSnap.data;
+            if (triads.isEmpty && pendingId == null) return const _EntryView();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (triads.length == 1)
+                  // Одна тройка — как всегда, без лишнего сворачивания.
+                  _MemberView(triad: triads.first)
+                else
+                  for (var i = 0; i < triads.length; i++) ...[
+                    _TriadSection(
+                      // Ключ по id: иначе при выходе из тройки состояние
+                      // раскрытия «переехало» бы на соседнюю.
+                      key: ValueKey(triads[i].id),
+                      triad: triads[i],
+                      index: i,
+                      initiallyExpanded: i == 0,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                if (pendingId != null) ...[
+                  if (triads.isNotEmpty) const SizedBox(height: 16),
+                  _PendingView(triadId: pendingId),
+                ] else if (triads.isNotEmpty)
+                  FutureBuilder<int>(
+                    future: _limitFuture,
+                    builder: (context, limSnap) {
+                      final limit = limSnap.data ?? 1;
+                      if (triads.length >= limit) {
+                        return const SizedBox.shrink();
+                      }
+                      return const Padding(
+                        padding: EdgeInsets.only(top: 16),
+                        child: _ExtraTriadCard(),
+                      );
+                    },
+                  ),
+              ],
+            );
+          },
+        );
       },
     );
   }
 }
 
-// --- Нет тройки: ожидание заявки или вход/создание -----------------------
+// --- Общие действия входа в тройку ----------------------------------------
 
-class _NoTriadView extends StatefulWidget {
-  const _NoTriadView();
-
-  @override
-  State<_NoTriadView> createState() => _NoTriadViewState();
-}
-
-class _NoTriadViewState extends State<_NoTriadView> {
-  late final Stream<String?> _stream =
-      TriadService.instance.pendingTriadIdStream();
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<String?>(
-      stream: _stream,
-      builder: (context, snap) {
-        final pendingId = snap.data;
-        if (pendingId != null) return _PendingView(triadId: pendingId);
-        return const _EntryView();
-      },
-    );
+Future<void> _createTriadFlow(BuildContext context) async {
+  try {
+    await TriadService.instance.createTriad();
+  } catch (e) {
+    if (context.mounted) _snack(context, e.toString());
   }
 }
+
+Future<void> _joinTriadFlow(BuildContext context) async {
+  final ctrl = TextEditingController();
+  final input = await showDialog<String>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: const Text('Вступить в тройку'),
+      content: TextField(
+        controller: ctrl,
+        autofocus: true,
+        decoration: const InputDecoration(
+          hintText: 'Введите код приглашения',
+          border: OutlineInputBorder(),
+        ),
+      ),
+      actions: [
+        TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена')),
+        FilledButton(
+            onPressed: () => Navigator.pop(context, ctrl.text),
+            child: const Text('Вступить')),
+      ],
+    ),
+  );
+  if (input == null || input.trim().isEmpty) return;
+  try {
+    final outcome = await TriadService.instance.joinByCode(input);
+    if (context.mounted) {
+      _snack(
+          context,
+          outcome == JoinOutcome.joined
+              ? 'Вы вступили в тройку!'
+              : 'Заявка отправлена. Ждём одобрения участников.');
+    }
+  } catch (e) {
+    if (context.mounted) _snack(context, e.toString());
+  }
+}
+
+// --- Нет ни одной тройки ---------------------------------------------------
 
 class _EntryView extends StatelessWidget {
   const _EntryView();
-
-  Future<void> _create(BuildContext context) async {
-    try {
-      await TriadService.instance.createTriad();
-    } catch (e) {
-      if (context.mounted) _snack(context, e.toString());
-    }
-  }
-
-  Future<void> _join(BuildContext context) async {
-    final ctrl = TextEditingController();
-    final input = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Вступить в тройку'),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(
-            hintText: 'Введите код приглашения',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Отмена')),
-          FilledButton(
-              onPressed: () => Navigator.pop(context, ctrl.text),
-              child: const Text('Вступить')),
-        ],
-      ),
-    );
-    if (input == null || input.trim().isEmpty) return;
-    try {
-      final outcome = await TriadService.instance.joinByCode(input);
-      if (context.mounted) {
-        _snack(
-            context,
-            outcome == JoinOutcome.joined
-                ? 'Вы вступили в тройку!'
-                : 'Заявка отправлена. Ждём одобрения участников.');
-      }
-    } catch (e) {
-      if (context.mounted) _snack(context, e.toString());
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -150,19 +176,128 @@ class _EntryView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         FilledButton.icon(
-          onPressed: () => _create(context),
+          onPressed: () => _createTriadFlow(context),
           icon: const Icon(Icons.group_add),
           label: const Text('Создать тройку'),
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: () => _join(context),
+          onPressed: () => _joinTriadFlow(context),
           icon: const Icon(Icons.link),
           label: const Text('Вступить по коду'),
           style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         ),
       ],
+    );
+  }
+}
+
+// --- Секция одной тройки в списке из нескольких ----------------------------
+
+class _TriadSection extends StatelessWidget {
+  const _TriadSection({
+    super.key,
+    required this.triad,
+    required this.index,
+    required this.initiallyExpanded,
+  });
+
+  final Triad triad;
+  final int index;
+  final bool initiallyExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final names = triad.memberUids
+        .map((uid) => triad.members[uid]?.name)
+        .map((n) => (n == null || n.isEmpty) ? 'Без имени' : n)
+        .join(' · ');
+    // Заявки/согласия внутри свёрнутой секции легко пропустить — выносим
+    // маркер наружу.
+    final needsAttention =
+        triad.joinRequests.isNotEmpty || triad.removalRequests.isNotEmpty;
+    return Card(
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerHighest,
+      clipBehavior: Clip.antiAlias,
+      child: ExpansionTile(
+        initiallyExpanded: initiallyExpanded,
+        shape: const Border(),
+        collapsedShape: const Border(),
+        leading: Icon(Icons.groups_outlined, color: theme.colorScheme.primary),
+        title: Row(
+          children: [
+            Text('Тройка ${index + 1}',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w600)),
+            if (needsAttention) ...[
+              const SizedBox(width: 8),
+              Icon(Icons.mark_chat_unread_outlined,
+                  size: 16, color: theme.colorScheme.error),
+            ],
+          ],
+        ),
+        subtitle: Text(names,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: theme.colorScheme.outline)),
+        childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
+        children: [_MemberView(triad: triad)],
+      ),
+    );
+  }
+}
+
+// --- Карточка «можно ещё одну тройку» --------------------------------------
+
+class _ExtraTriadCard extends StatelessWidget {
+  const _ExtraTriadCard();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      color: theme.colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Вам открыта ещё одна тройка',
+                style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            Text(
+              'Админ церкви разрешил вам участвовать ещё в одной тройке — '
+              'создайте её или вступите по коду.',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onPrimaryContainer),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _createTriadFlow(context),
+                    icon: const Icon(Icons.group_add),
+                    label: const Text('Создать'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _joinTriadFlow(context),
+                    icon: const Icon(Icons.link),
+                    label: const Text('По коду'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

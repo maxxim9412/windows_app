@@ -25,41 +25,130 @@ class TriadService {
 
   String? get _uid => AuthService.instance.uid;
 
-  // --- Кэш «моей» тройки (для привязки заметок) ---------------------------
-  String? _cachedTriadId;
-  bool _fetched = false;
+  // --- Кэш «моих» троек ---------------------------------------------------
+  // Человек может состоять в нескольких тройках (вторую и далее открывает
+  // админ церкви). Кэш нужен, чтобы автосохранение заметки не гоняло запрос
+  // по тройкам на каждую паузу в наборе.
+  List<String>? _cachedTriadIds;
+  List<String>? _cachedVisibleTo;
 
-  Future<String?> currentTriadId() async {
-    if (_fetched) return _cachedTriadId;
+  /// id всех моих троек.
+  Future<List<String>> myTriadIds() async {
+    final cached = _cachedTriadIds;
+    if (cached != null) return cached;
     final uid = _uid;
-    if (uid == null) return null;
+    if (uid == null) return const [];
     final q = await _db
         .collection('triads')
         .where('memberUids', arrayContains: uid)
-        .limit(1)
         .get();
-    _cachedTriadId = q.docs.isEmpty ? null : q.docs.first.id;
-    _fetched = true;
-    return _cachedTriadId;
+    return _cachedTriadIds = q.docs.map((d) => d.id).toList();
+  }
+
+  /// Первая из моих троек (для легаси-привязки заметки через поле triadId).
+  Future<String?> currentTriadId() async {
+    final ids = await myTriadIds();
+    return ids.isEmpty ? null : ids.first;
+  }
+
+  /// Кто видит мои заметки: объединение участников всех моих троек. Заметка
+  /// одна на день, поэтому при двух тройках она «дублируется» в обе просто
+  /// расширением круга читателей — лишней работы у пишущего нет.
+  Future<List<String>> visibleToUids() async {
+    final cached = _cachedVisibleTo;
+    if (cached != null) return cached;
+    final uid = _uid;
+    if (uid == null) return const [];
+    final q = await _db
+        .collection('triads')
+        .where('memberUids', arrayContains: uid)
+        .get();
+    final union = <String>{};
+    for (final d in q.docs) {
+      union.addAll(List<String>.from(d.data()['memberUids'] as List? ?? const []));
+    }
+    _cachedTriadIds = q.docs.map((d) => d.id).toList();
+    return _cachedVisibleTo = union.toList();
   }
 
   void reset() {
-    _fetched = false;
-    _cachedTriadId = null;
+    _cachedTriadIds = null;
+    _cachedVisibleTo = null;
+  }
+
+  // --- Лимит троек ---------------------------------------------------------
+  // По умолчанию одна. Вторую (и далее) открывает админ церкви — разрешение
+  // хранится в churches/{id}/triadAllowances/{uid}, поле limit. Это отдельный
+  // документ, а не поле профиля: профиль пишет сам человек, и он не должен
+  // уметь поднять лимит себе.
+
+  DocumentReference<Map<String, dynamic>> _allowanceRef(
+          String churchId, String uid) =>
+      _db
+          .collection('churches')
+          .doc(churchId)
+          .collection('triadAllowances')
+          .doc(uid);
+
+  /// Сколько троек разрешено человеку в этой церкви (нет документа — одна).
+  Future<int> triadLimitFor(String churchId, String uid) async {
+    final doc = await _allowanceRef(churchId, uid).get();
+    return (doc.data()?['limit'] as num?)?.toInt() ?? 1;
+  }
+
+  /// Задать лимит (админ церкви/супер-админ). Лимит 1 — это «по умолчанию»,
+  /// документ просто удаляем.
+  Future<void> setTriadLimit(String churchId, String uid, int limit) async {
+    if (limit <= 1) {
+      await _allowanceRef(churchId, uid).delete();
+    } else {
+      await _allowanceRef(churchId, uid).set({'limit': limit});
+    }
+  }
+
+  /// Мой лимит троек в моей церкви.
+  Future<int> myTriadLimit() async {
+    final uid = _uid;
+    if (uid == null) return 1;
+    final churchId = await AuthService.instance.currentChurchId();
+    if (churchId == null) return 1;
+    try {
+      return await triadLimitFor(churchId, uid);
+    } catch (_) {
+      return 1;
+    }
+  }
+
+  /// Проверка перед созданием/вступлением: есть ли место под ещё одну тройку.
+  Future<void> _ensureBelowLimit() async {
+    reset(); // членство могло измениться с прошлого запроса — считаем свежее
+    final count = (await myTriadIds()).length;
+    if (count == 0) return;
+    final limit = await myTriadLimit();
+    if (count >= limit) {
+      throw TriadException(limit <= 1
+          ? 'Вы уже состоите в тройке. Участие ещё в одной может открыть '
+              'админ вашей церкви.'
+          : 'Вам разрешено троек: $limit — вы уже во всех.');
+    }
   }
 
   // --- Потоки -------------------------------------------------------------
 
-  /// Тройка, в которой я состою (или null).
-  Stream<Triad?> myTriadStream() {
+  /// Все тройки, в которых я состою (живой список).
+  Stream<List<Triad>> myTriadsStream() {
     final uid = _uid;
-    if (uid == null) return Stream.value(null);
+    if (uid == null) return Stream.value(const []);
     return _db
         .collection('triads')
         .where('memberUids', arrayContains: uid)
-        .limit(1)
         .snapshots()
-        .map((q) => q.docs.isEmpty ? null : Triad.fromDoc(q.docs.first));
+        .map((q) {
+      final list = q.docs.map(Triad.fromDoc).toList();
+      // Стабильный порядок, чтобы «Тройка 1/2» не скакали между кадрами.
+      list.sort((a, b) => a.id.compareTo(b.id));
+      return list;
+    });
   }
 
   /// id тройки, куда я подал заявку 3-м участником (или null).
@@ -116,22 +205,21 @@ class TriadService {
     };
   }
 
-  /// Обновить свою копию в документе тройки после правки профиля.
+  /// Обновить свою копию во ВСЕХ моих тройках после правки профиля.
   ///
   /// Тройка хранит имя, почту и телефон копией: правила не дают участникам
-  /// читать профили друг друга. Без этого вызова тройка навсегда осталась бы со
+  /// читать профили друг друга. Без этого вызова тройки навсегда остались бы со
   /// старыми данными — до этой правки так и было со сменой имени.
   Future<void> syncMyProfileToTriad() async {
     try {
       final uid = _uid;
       if (uid == null) return;
-      final triadId = await currentTriadId();
-      if (triadId == null) return;
+      final ids = await myTriadIds();
+      if (ids.isEmpty) return;
       final profile = await _myProfile();
-      await _db
-          .collection('triads')
-          .doc(triadId)
-          .update({'members.$uid': profile});
+      for (final id in ids) {
+        await _db.collection('triads').doc(id).update({'members.$uid': profile});
+      }
     } catch (_) {
       // Не критично: копия обновится при следующей правке профиля.
     }
@@ -142,9 +230,7 @@ class TriadService {
   Future<void> createTriad() async {
     final uid = _uid;
     if (uid == null) throw TriadException('Нужно войти в аккаунт.');
-    if (await currentTriadId() != null) {
-      throw TriadException('Вы уже состоите в тройке.');
-    }
+    await _ensureBelowLimit();
     final churchId = await AuthService.instance.currentChurchId();
     if (churchId == null) {
       throw TriadException(
@@ -191,14 +277,14 @@ class TriadService {
       final q = await _db
           .collection('triads')
           .where('memberUids', arrayContains: uid)
-          .limit(1)
           .get();
-      if (q.docs.isEmpty) return;
-      final code = q.docs.first.data()['inviteCode'] as String?;
-      if (code == null || code.isEmpty) return;
-      final indexed = await _codeRef(code).get();
-      if (!indexed.exists) {
-        await _codeRef(code).set({'triadId': q.docs.first.id});
+      for (final doc in q.docs) {
+        final code = doc.data()['inviteCode'] as String?;
+        if (code == null || code.isEmpty) continue;
+        final indexed = await _codeRef(code).get();
+        if (!indexed.exists) {
+          await _codeRef(code).set({'triadId': doc.id});
+        }
       }
     } catch (_) {
       // Не критично: попробуем при следующем запуске.
@@ -242,9 +328,7 @@ class TriadService {
   Future<JoinOutcome> joinByCode(String codeOrLink) async {
     final uid = _uid;
     if (uid == null) throw TriadException('Нужно войти в аккаунт.');
-    if (await currentTriadId() != null) {
-      throw TriadException('Вы уже состоите в тройке.');
-    }
+    await _ensureBelowLimit();
     final code = extractCode(codeOrLink);
     if (code.isEmpty) throw TriadException('Введите код приглашения.');
 

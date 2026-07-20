@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../data/report_repository.dart';
 import '../models/triad.dart';
+import '../services/triad_service.dart';
 
 /// Сводка по церкви: сколько троек, кто в них, кому ещё нужен участник.
 ///
@@ -190,10 +191,58 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Диалог «сколько троек разрешено человеку». Лимит хранится на церкви
+  /// (churches/{id}/triadAllowances/{uid}) и проверяется при создании/вступлении.
+  Future<void> _editTriadLimit(String uid, String name) async {
+    int current;
+    try {
+      current = await TriadService.instance.triadLimitFor(widget.churchId, uid);
+    } catch (_) {
+      current = 1;
+    }
+    if (!mounted) return;
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (_) => SimpleDialog(
+        title: Text('Троек разрешено: $name'),
+        children: [
+          for (final n in const [1, 2, 3])
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, n),
+              child: Row(
+                children: [
+                  Icon(
+                    n == current
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_off,
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(n == 1 ? '1 (по умолчанию)' : '$n'),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (picked == null || picked == current) return;
+    try {
+      await TriadService.instance.setTriadLimit(widget.churchId, uid, picked);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$name: разрешено троек — $picked')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Не удалось сохранить: $e')));
+    }
+  }
+
   /// Строка человека: имя, почта, телефон. Нажатие копирует телефон, если он
-  /// есть, иначе почту — по телефону связываются быстрее.
+  /// есть, иначе почту — по телефону связываются быстрее. [allowanceUid]
+  /// добавляет кнопку «разрешить ещё одну тройку» (для участников троек).
   Widget _personRow(ThemeData theme, String name, String email,
-      [String phone = '']) {
+      [String phone = '', String? allowanceUid]) {
     final primary = phone.isNotEmpty ? phone : email;
     final label = phone.isNotEmpty ? 'Телефон скопирован' : 'Почта скопирована';
     return InkWell(
@@ -219,6 +268,13 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                 ],
               ),
             ),
+            if (allowanceUid != null)
+              IconButton(
+                tooltip: 'Разрешить ещё одну тройку',
+                icon: Icon(Icons.group_add_outlined,
+                    size: 18, color: theme.colorScheme.outline),
+                onPressed: () => _editTriadLimit(allowanceUid, name),
+              ),
             if (primary.isNotEmpty)
               Icon(Icons.copy_outlined,
                   size: 16, color: theme.colorScheme.outline),
@@ -278,6 +334,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
                     : 'Без имени',
                 t.members[uid]?.email ?? '',
                 t.members[uid]?.phone ?? '',
+                uid, // участник тройки — можно разрешить ему ещё одну
               ),
             if (t.joinRequests.isNotEmpty) ...[
               const SizedBox(height: 6),
