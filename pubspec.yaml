@@ -1,7 +1,7 @@
 name: bible_reflection
 description: "Размышления над Библией — отрывок дня, личные заметки и напоминания."
 publish_to: 'none'
-version: 0.7.0+28
+version: 0.7.1+29
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -69,3 +69,11 @@ flutter:
   assets:
     - assets/bible/
     - assets/sounds/
+  fonts:
+    - family: Source Serif 4
+      fonts:
+        - asset: assets/fonts/SourceSerif4-Regular.ttf
+        - asset: assets/fonts/SourceSerif4-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/SourceSerif4-Italic.ttf
+          style: italic

@@ -114,7 +114,7 @@ class _ReadingImportScreenState extends State<ReadingImportScreen> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(4),
             ),
             child: Text(
               'Примеры формата:\nБыт 1-3\nБыт 4-6; Пс 1\nМф 5; Мф 6',

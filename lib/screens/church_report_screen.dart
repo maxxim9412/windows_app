@@ -170,7 +170,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
         width: 150,
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -247,7 +247,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
     final label = phone.isNotEmpty ? 'Телефон скопирован' : 'Почта скопирована';
     return InkWell(
       onTap: primary.isEmpty ? null : () => _copy(primary, label),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(4),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: Row(
