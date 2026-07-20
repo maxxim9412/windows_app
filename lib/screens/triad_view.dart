@@ -390,7 +390,6 @@ class _MemberView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final uid = _uid;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -408,46 +407,15 @@ class _MemberView extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // Участники
+        // Участники и отметки «сделал заметку сегодня» — одним списком:
+        // имя, контакты и отметка в одной карточке, нажатие открывает заметку.
         Text('Участники (${triad.memberCount}/3)',
             style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
-        ...triad.memberUids.map((memberUid) {
-          final m = triad.members[memberUid];
-          final isMe = memberUid == uid;
-          final canRemove = triad.memberCount == 3 &&
-              !isMe &&
-              !triad.removalRequests.any((r) => r.targetUid == memberUid);
-          return Card(
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: theme.colorScheme.primary,
-                child: Text(
-                  (m?.name.isNotEmpty ?? false)
-                      ? m!.name.characters.first.toUpperCase()
-                      : '?',
-                  style: TextStyle(color: theme.colorScheme.onPrimary),
-                ),
-              ),
-              title: Text(
-                  '${m?.name.isNotEmpty == true ? m!.name : 'Без имени'}'
-                  '${isMe ? ' (вы)' : ''}'),
-              // Телефон — резервная связь: почта в срочном случае бесполезна.
-              subtitle: Text([
-                if (m?.email.isNotEmpty ?? false) m!.email,
-                if (m?.phone.isNotEmpty ?? false) m!.phone,
-              ].join('\n')),
-              isThreeLine: m?.phone.isNotEmpty ?? false,
-              trailing: canRemove
-                  ? IconButton(
-                      tooltip: 'Предложить удалить',
-                      icon: const Icon(Icons.person_remove_outlined),
-                      onPressed: () => _confirmRemoval(context, m!),
-                    )
-                  : null,
-            ),
-          );
-        }),
+        _MembersList(
+          triad: triad,
+          onRemove: (m) => _confirmRemoval(context, m),
+        ),
 
         // Запросы на удаление
         ...triad.removalRequests.map((r) => _removalCard(context, r)),
@@ -460,12 +428,6 @@ class _MemberView extends StatelessWidget {
           const SizedBox(height: 16),
           _inviteCard(context),
         ],
-
-        // Заметки сегодня
-        const SizedBox(height: 16),
-        Text('Заметки сегодня', style: theme.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        _TodayNotes(triad: triad),
 
         // Выход из тройки
         const SizedBox(height: 24),
@@ -689,17 +651,18 @@ class _MemberView extends StatelessWidget {
   }
 }
 
-// --- Заметки участников за сегодня ---------------------------------------
+// --- Участники: контакты + отметка «сделал заметку сегодня» ---------------
 
-class _TodayNotes extends StatefulWidget {
+class _MembersList extends StatefulWidget {
   final Triad triad;
-  const _TodayNotes({required this.triad});
+  final void Function(TriadMember m) onRemove;
+  const _MembersList({required this.triad, required this.onRemove});
 
   @override
-  State<_TodayNotes> createState() => _TodayNotesState();
+  State<_MembersList> createState() => _MembersListState();
 }
 
-class _TodayNotesState extends State<_TodayNotes> {
+class _MembersListState extends State<_MembersList> {
   final _today = dateOnly(DateTime.now());
 
   /// Поток на участника — заводим по одному разу и держим, иначе перерисовка
@@ -743,9 +706,14 @@ class _TodayNotesState extends State<_TodayNotes> {
     final theme = Theme.of(context);
     final today = _today;
     final triad = widget.triad;
+    final myUid = AuthService.instance.uid;
     return Column(
       children: triad.memberUids.map((uid) {
         final m = triad.members[uid];
+        final isMe = uid == myUid;
+        final canRemove = triad.memberCount == 3 &&
+            !isMe &&
+            !triad.removalRequests.any((r) => r.targetUid == uid);
         return StreamBuilder<Note?>(
           stream: _streamFor(uid),
           builder: (context, snap) {
@@ -753,17 +721,45 @@ class _TodayNotesState extends State<_TodayNotes> {
             final done = note != null && note.isDone;
             return Card(
               child: ListTile(
-                leading: Icon(
-                  done ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: done
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.outline,
+                leading: CircleAvatar(
+                  backgroundColor: theme.colorScheme.primary,
+                  child: Text(
+                    (m?.name.isNotEmpty ?? false)
+                        ? m!.name.characters.first.toUpperCase()
+                        : '?',
+                    style: TextStyle(color: theme.colorScheme.onPrimary),
+                  ),
                 ),
-                title:
-                    Text(m?.name.isNotEmpty == true ? m!.name : 'Без имени'),
-                subtitle:
-                    Text(done ? 'Сделал заметку' : 'Пока нет заметки'),
-                trailing: done ? const Icon(Icons.chevron_right) : null,
+                title: Text(
+                    '${m?.name.isNotEmpty == true ? m!.name : 'Без имени'}'
+                    '${isMe ? ' (вы)' : ''}'),
+                // Телефон — резервная связь; последняя строка — статус заметки.
+                subtitle: Text(
+                  [
+                    if (m?.email.isNotEmpty ?? false) m!.email,
+                    if (m?.phone.isNotEmpty ?? false) m!.phone,
+                    done ? 'Сделал заметку — нажмите' : 'Пока нет заметки',
+                  ].join('\n'),
+                ),
+                isThreeLine:
+                    (m?.email.isNotEmpty ?? false) || (m?.phone.isNotEmpty ?? false),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (canRemove)
+                      IconButton(
+                        tooltip: 'Предложить удалить',
+                        icon: const Icon(Icons.person_remove_outlined),
+                        onPressed: () => widget.onRemove(m!),
+                      ),
+                    Icon(
+                      done ? Icons.check_circle : Icons.radio_button_unchecked,
+                      color: done
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.outline,
+                    ),
+                  ],
+                ),
                 onTap: done ? () => _view(context, m, note, today) : null,
               ),
             );
