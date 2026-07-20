@@ -202,6 +202,7 @@ class TriadService {
           AuthService.instance.currentUser?.email ??
           '',
       'phone': (p?['phone'] as String?) ?? '',
+      'photo': (p?['photo'] as String?) ?? '',
     };
   }
 
@@ -384,6 +385,7 @@ class TriadService {
             'name': profile['name'],
             'email': profile['email'],
             'phone': profile['phone'],
+            'photo': profile['photo'],
             'approvals': <String>[],
           },
         });
@@ -454,6 +456,7 @@ class TriadService {
             'name': jr['name'],
             'email': jr['email'],
             'phone': jr['phone'] ?? '',
+            'photo': jr['photo'] ?? '',
           },
           'joinRequests.$joinerUid': FieldValue.delete(),
         });

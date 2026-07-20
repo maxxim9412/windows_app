@@ -11,6 +11,7 @@ import '../services/auth_service.dart';
 import '../services/triad_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
+import '../widgets/member_avatar.dart';
 
 /// Раздел троек: человек может состоять в нескольких (вторую и далее открывает
 /// админ церкви). Одна тройка показывается развёрнуто как раньше; несколько —
@@ -721,14 +722,9 @@ class _MembersListState extends State<_MembersList> {
             final done = note != null && note.isDone;
             return Card(
               child: ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: theme.colorScheme.primary,
-                  child: Text(
-                    (m?.name.isNotEmpty ?? false)
-                        ? m!.name.characters.first.toUpperCase()
-                        : '?',
-                    style: TextStyle(color: theme.colorScheme.onPrimary),
-                  ),
+                leading: MemberAvatar(
+                  name: m?.name ?? '?',
+                  photoBase64: m?.photo,
                 ),
                 title: Text(
                     '${m?.name.isNotEmpty == true ? m!.name : 'Без имени'}'

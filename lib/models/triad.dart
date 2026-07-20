@@ -10,11 +10,16 @@ class TriadMember {
   final String name;
   final String email;
   final String phone;
+
+  /// Аватар — base64 сжатого фото (см. MemberAvatar). Пусто — нет фото.
+  final String photo;
+
   const TriadMember({
     required this.uid,
     required this.name,
     required this.email,
     this.phone = '',
+    this.photo = '',
   });
 }
 
@@ -132,6 +137,7 @@ class Triad {
         name: (m['name'] as String?) ?? '',
         email: (m['email'] as String?) ?? '',
         phone: (m['phone'] as String?) ?? '',
+        photo: (m['photo'] as String?) ?? '',
       );
     });
 

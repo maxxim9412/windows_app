@@ -72,6 +72,17 @@ class AuthService {
         .set(data, SetOptions(merge: true));
   }
 
+  /// Сохранить (или удалить, если null) аватар — base64-строка сжатого фото.
+  /// Копию в тройках обновляет TriadService.syncMyProfileToTriad — вызвать следом.
+  Future<void> updatePhoto(String? photoBase64) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+    await _db.collection('users').doc(user.uid).set(
+      {'photo': photoBase64 ?? FieldValue.delete()},
+      SetOptions(merge: true),
+    );
+  }
+
   Future<void> signIn({required String email, required String password}) async {
     await _auth.signInWithEmailAndPassword(
       email: email.trim(),

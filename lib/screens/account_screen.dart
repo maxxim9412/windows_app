@@ -1,4 +1,9 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../data/church_repository.dart';
 import '../models/church.dart';
@@ -6,6 +11,7 @@ import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../services/triad_service.dart';
 import '../utils/app_themes.dart';
+import '../widgets/member_avatar.dart';
 import 'church_management_screen.dart';
 import 'church_report_screen.dart';
 import 'church_theme_screen.dart';
@@ -65,6 +71,96 @@ class _AccountScreenState extends State<AccountScreen> {
   /// Админ своей церкви — он и настраивает её оформление.
   bool get _isChurchAdmin =>
       _myChurch?.adminUids.contains(AuthService.instance.uid) ?? false;
+
+  /// Смена аватара: галерея или камера. Фото ужимается пикером до 256×256 и
+  /// хранится base64-строкой в профиле (Storage на бесплатном плане недоступен),
+  /// копия уезжает в тройки через syncMyProfileToTriad.
+  Future<void> _editAvatar() async {
+    final hasPhoto = ((_profile?['photo'] as String?) ?? '').isNotEmpty;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Выбрать из галереи'),
+              onTap: () => Navigator.pop(context, 'gallery'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Сделать фото'),
+              onTap: () => Navigator.pop(context, 'camera'),
+            ),
+            if (hasPhoto)
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Убрать фото'),
+                onTap: () => Navigator.pop(context, 'delete'),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    if (action == 'delete') {
+      await AuthService.instance.updatePhoto(null);
+      await TriadService.instance.syncMyProfileToTriad();
+      _load();
+      return;
+    }
+
+    // На Android камера объявлена в манифесте (её требует Agora), поэтому
+    // системный снимок не сработает без выданного разрешения — просим явно.
+    if (action == 'camera' && !kIsWeb) {
+      final st = await Permission.camera.request();
+      if (!st.isGranted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text('Нужен доступ к камере, чтобы сделать фото.')));
+        }
+        return;
+      }
+    }
+
+    XFile? file;
+    try {
+      file = await ImagePicker().pickImage(
+        source: action == 'camera' ? ImageSource.camera : ImageSource.gallery,
+        maxWidth: 256,
+        maxHeight: 256,
+        imageQuality: 75,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Не удалось открыть источник фото: $e')));
+      }
+      return;
+    }
+    if (file == null) return; // передумал
+
+    final bytes = await file.readAsBytes();
+    // Страховка: base64 ляжет в документ Firestore (лимит 1 МБ на документ,
+    // и копия едет в тройку) — слишком большое не пропускаем.
+    if (bytes.length > 300 * 1024) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Фото получилось слишком большим — попробуйте другое.')));
+      }
+      return;
+    }
+
+    await AuthService.instance.updatePhoto(base64Encode(bytes));
+    await TriadService.instance.syncMyProfileToTriad();
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Аватар обновлён.')));
+    }
+    _load();
+  }
 
   Future<void> _editProfile(String currentName, String currentPhone) async {
     final nameCtrl = TextEditingController(text: currentName);
@@ -224,13 +320,32 @@ class _AccountScreenState extends State<AccountScreen> {
         children: [
           Card(
             child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: theme.colorScheme.primary,
-                child: Text(
-                  displayName != 'Без имени'
-                      ? displayName.characters.first.toUpperCase()
-                      : '?',
-                  style: TextStyle(color: theme.colorScheme.onPrimary),
+              // Аватар с бейджем-камерой: нажатие — выбрать фото из галереи
+              // или снять новое.
+              leading: InkWell(
+                onTap: _editAvatar,
+                customBorder: const CircleBorder(),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    MemberAvatar(
+                      name: displayName == 'Без имени' ? '?' : displayName,
+                      photoBase64: (_profile?['photo'] as String?) ?? '',
+                    ),
+                    Positioned(
+                      right: -2,
+                      bottom: -2,
+                      child: Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.photo_camera,
+                            size: 13, color: theme.colorScheme.primary),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               title: Text(displayName),
