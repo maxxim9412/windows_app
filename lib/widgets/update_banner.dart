@@ -3,10 +3,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../services/update_service.dart';
 
-/// Плашка «доступно обновление» для Android-версии. Появляется сверху, если на
-/// сервере версия новее. Кнопка открывает ссылку на APK — установить всё равно
-/// нужно вручную (Android не даёт ставить не из Play молча), но человек хотя бы
-/// узнаёт, что вышло обновление, и попадает на загрузку в одно нажатие.
+/// Проверка обновления для Android-версии. Ничего не рисует сама — если на
+/// сервере версия новее, поверх всего приложения показывает модальное окно
+/// с кнопками «Обновить» / «Пока пропустить». Проверка идёт заново при каждом
+/// запуске приложения (состояние не хранится), так что если пропустить —
+/// окно вернётся при следующем открытии.
 class UpdateBanner extends StatefulWidget {
   const UpdateBanner({super.key});
 
@@ -15,56 +16,54 @@ class UpdateBanner extends StatefulWidget {
 }
 
 class _UpdateBannerState extends State<UpdateBanner> {
-  // Не в build: проверка должна пройти один раз, а не на каждой перерисовке.
-  final Future<UpdateInfo?> _check = UpdateService.instance.check();
-  bool _dismissed = false;
+  bool _asked = false;
 
   Future<void> _download(String url) async {
     // Внешним браузером: он скачает APK и предложит установить.
     await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
   }
 
+  Future<void> _maybeShow() async {
+    final info = await UpdateService.instance.check();
+    if (!mounted || info == null) return;
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          icon: const Icon(Icons.system_update),
+          title: const Text('Доступно обновление'),
+          content: Text(
+            info.versionName.isEmpty
+                ? 'Вышла новая версия приложения.'
+                : 'Вышла версия ${info.versionName}.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Пока пропустить'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _download(info.downloadUrl);
+              },
+              child: const Text('Обновить'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_dismissed) return const SizedBox.shrink();
-    return FutureBuilder<UpdateInfo?>(
-      future: _check,
-      builder: (context, snap) {
-        final info = snap.data;
-        if (info == null) return const SizedBox.shrink();
-        final theme = Theme.of(context);
-        return Material(
-          color: theme.colorScheme.primaryContainer,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-            child: Row(
-              children: [
-                Icon(Icons.system_update,
-                    size: 20, color: theme.colorScheme.onPrimaryContainer),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    info.versionName.isEmpty
-                        ? 'Доступна новая версия приложения'
-                        : 'Доступна версия ${info.versionName}',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onPrimaryContainer),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => _download(info.downloadUrl),
-                  child: const Text('Обновить'),
-                ),
-                IconButton(
-                  tooltip: 'Позже',
-                  icon: const Icon(Icons.close, size: 18),
-                  onPressed: () => setState(() => _dismissed = true),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
+    if (!_asked) {
+      _asked = true;
+      // После первого кадра: диалогу нужен готовый Navigator над этим виджетом.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeShow());
+    }
+    return const SizedBox.shrink();
   }
 }
