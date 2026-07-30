@@ -4,6 +4,7 @@ import '../data/bible_repository.dart';
 import '../data/progress_repository.dart';
 import '../data/reading_repository.dart';
 import '../models/reading_chapter.dart';
+import '../utils/app_dimens.dart';
 
 /// Текст одной главы плана. Отдельным экраном — чтобы читать без лишнего, а
 /// кнопка отметки лежит под текстом: дочитал — она уже там.
@@ -112,7 +113,7 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               // Стихи строятся по мере прокрутки: в главе их бывает под сотню.
               itemCount: _verses.length + 1,
               itemBuilder: (context, i) {

@@ -12,6 +12,7 @@ import '../services/triad_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
 import '../widgets/member_avatar.dart';
+import '../utils/app_dimens.dart';
 
 /// Раздел троек: человек может состоять в нескольких (вторую и далее открывает
 /// админ церкви). Одна тройка показывается развёрнуто как раньше; несколько —
@@ -43,7 +44,7 @@ class _TriadViewState extends State<TriadView> {
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Padding(
-            padding: EdgeInsets.all(24),
+            padding: EdgeInsets.all(AppSpacing.xl),
             child: Center(child: CircularProgressIndicator()),
           );
         }
@@ -160,7 +161,7 @@ class _EntryView extends StatelessWidget {
         Card(
           color: theme.colorScheme.surfaceContainerHighest,
           child: const Padding(
-            padding: EdgeInsets.all(16),
+            padding: EdgeInsets.all(AppSpacing.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -263,7 +264,7 @@ class _ExtraTriadCard extends StatelessWidget {
     return Card(
       color: theme.colorScheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -351,7 +352,7 @@ class _PendingViewState extends State<_PendingView> {
             Card(
               color: theme.colorScheme.surfaceContainerHighest,
               child: Padding(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 child: Column(
                   children: [
                     const Icon(Icons.hourglass_top, size: 40),
@@ -456,7 +457,7 @@ class _MemberView extends StatelessWidget {
     return Card(
       color: theme.colorScheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -508,7 +509,7 @@ class _MemberView extends StatelessWidget {
     return Card(
       color: theme.colorScheme.tertiaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -556,7 +557,7 @@ class _MemberView extends StatelessWidget {
     return Card(
       color: theme.colorScheme.errorContainer,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -682,7 +683,7 @@ class _MembersListState extends State<_MembersList> {
         initialChildSize: 0.7,
         builder: (_, controller) => ListView(
           controller: controller,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           children: [
             Text(m?.name ?? '', style: Theme.of(context).textTheme.titleLarge),
             Text(humanDate(today),

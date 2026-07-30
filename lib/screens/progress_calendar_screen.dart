@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../data/progress_repository.dart';
 import '../utils/date_helpers.dart';
 import '../utils/status_colors.dart';
+import '../utils/app_dimens.dart';
 
 /// Календарь с отметками: что сделано, что пропущено. Выбор дня возвращается
 /// вызывающему экрану через Navigator.pop.
@@ -155,10 +156,10 @@ class _ProgressCalendarScreenState extends State<ProgressCalendarScreen> {
 
     return InkWell(
       onTap: selectable ? () => Navigator.pop(context, day) : null,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: Container(
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadii.sm),
           color: isSelected
               ? theme.colorScheme.primaryContainer
               : Colors.transparent,
@@ -214,7 +215,7 @@ class _ProgressCalendarScreenState extends State<ProgressCalendarScreen> {
       elevation: 0,
       color: theme.colorScheme.surfaceContainerHighest,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

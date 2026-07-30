@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/church_repository.dart';
 import '../models/church.dart';
 import '../services/auth_service.dart';
+import '../utils/app_dimens.dart';
 
 /// Вход и регистрация по email + паролю.
 class AuthScreen extends StatefulWidget {
@@ -194,7 +195,7 @@ class _AuthScreenState extends State<AuthScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(AppSpacing.xl),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: Form(

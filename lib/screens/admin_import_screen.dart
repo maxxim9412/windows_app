@@ -5,6 +5,7 @@ import '../models/passage.dart';
 import '../utils/bible_books.dart';
 import '../utils/date_helpers.dart';
 import '../utils/reference_parser.dart';
+import '../utils/app_dimens.dart';
 
 /// Массовый импорт отрывков: вставка списка сокращённых адресов
 /// с автоматической раскладкой по будним дням.
@@ -88,7 +89,7 @@ class _AdminImportScreenState extends State<AdminImportScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Импорт отрывков')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           Text(
             'Вставьте адреса — по одному в строке (можно скопировать столбец из '
@@ -98,10 +99,10 @@ class _AdminImportScreenState extends State<AdminImportScreen> {
           ),
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
             ),
             child: Text(
               'Примеры формата:\nИн 3:16-17\nМф 5:3-10\nПс 22:1-6\n1 Кор 13:1-7',

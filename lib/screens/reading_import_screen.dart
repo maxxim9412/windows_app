@@ -5,6 +5,7 @@ import '../models/reading.dart';
 import '../utils/bible_books.dart';
 import '../utils/date_helpers.dart';
 import '../utils/reference_parser.dart';
+import '../utils/app_dimens.dart';
 
 /// Одна строка = один день чтения; в строке может быть несколько глав через «;».
 class _DayImport {
@@ -101,7 +102,7 @@ class _ReadingImportScreenState extends State<ReadingImportScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Импорт плана чтения')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           Text(
             'Вставьте главы — по одной строке на день. Несколько глав в один день '
@@ -111,10 +112,10 @@ class _ReadingImportScreenState extends State<ReadingImportScreen> {
           ),
           const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
             ),
             child: Text(
               'Примеры формата:\nБыт 1-3\nБыт 4-6; Пс 1\nМф 5; Мф 6',

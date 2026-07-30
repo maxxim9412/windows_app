@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/notification_service.dart';
 import '../services/settings_service.dart';
+import '../utils/app_dimens.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -100,7 +101,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 const Divider(),
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   child: FilledButton(
                     onPressed: _apply,
                     child: const Text('Применить'),

@@ -6,6 +6,7 @@ import '../models/passage.dart';
 import '../utils/bible_books.dart';
 import '../utils/date_helpers.dart';
 import 'admin_import_screen.dart';
+import '../utils/app_dimens.dart';
 
 /// Экран администратора: назначение отрывков на дни.
 class AdminScreen extends StatefulWidget {
@@ -73,7 +74,7 @@ class _AdminScreenState extends State<AdminScreen> {
           if (items.isEmpty) {
             return const Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: EdgeInsets.all(AppSpacing.xxl),
                 child: Text('Отрывков пока нет. Добавьте первый кнопкой ниже.',
                     textAlign: TextAlign.center),
               ),
@@ -301,10 +302,10 @@ class _PassageEditorState extends State<_PassageEditor> {
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
                 child: Text(_preview!, style: theme.textTheme.bodyMedium),
               ),

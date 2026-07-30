@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../data/report_repository.dart';
 import '../models/triad.dart';
 import '../services/triad_service.dart';
+import '../utils/app_dimens.dart';
 
 /// Сводка по церкви: сколько троек, кто в них, кому ещё нужен участник.
 ///
@@ -60,7 +61,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
           if (snap.hasError) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(32),
+                padding: const EdgeInsets.all(AppSpacing.xxl),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -87,14 +88,14 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
           }
           final r = snap.data!;
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             children: [
               _numbers(theme, r),
               const SizedBox(height: 24),
               if (r.triads.isEmpty)
                 Card(
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -170,9 +171,9 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
         width: 150,
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadii.md),
         ),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -247,7 +248,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
     final label = phone.isNotEmpty ? 'Телефон скопирован' : 'Почта скопирована';
     return InkWell(
       onTap: primary.isEmpty ? null : () => _copy(primary, label),
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(AppRadii.sm),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
         child: Row(
@@ -294,7 +295,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
       color: theme.colorScheme.surfaceContainerHighest,
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

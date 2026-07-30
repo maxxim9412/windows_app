@@ -16,6 +16,7 @@ import '../widgets/progress_calendar_button.dart';
 import 'monthly_schedule_screen.dart';
 import 'notes_list_screen.dart';
 import 'settings_screen.dart';
+import '../utils/app_dimens.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -188,7 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
                       Text(
                         humanDate(_day),
@@ -303,7 +304,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_hasChurch) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -323,7 +324,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (passage == null) {
       return Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -345,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 0,
       color: theme.colorScheme.surfaceContainerHighest,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

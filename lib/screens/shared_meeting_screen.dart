@@ -12,6 +12,7 @@ import '../services/auth_service.dart';
 import '../services/triad_service.dart';
 import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
+import '../utils/app_dimens.dart';
 
 /// Совместная встреча тройки: встроенный аудиозвонок (Agora) + синхронно
 /// показываемая заметка. У всех троих открыта одна и та же заметка; любой
@@ -216,7 +217,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Совместная встреча')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           _callCard(theme),
           const SizedBox(height: 16),
@@ -248,7 +249,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
     if (_joining) {
       return const Card(
         child: Padding(
-          padding: EdgeInsets.all(16),
+          padding: EdgeInsets.all(AppSpacing.lg),
           child: Row(children: [
             SizedBox(
                 width: 20,
@@ -271,7 +272,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
     return Card(
       color: theme.colorScheme.primaryContainer,
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           children: [
             Icon(Icons.call, color: theme.colorScheme.primary),
@@ -353,7 +354,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
       color: theme.colorScheme.tertiaryContainer,
       margin: const EdgeInsets.only(top: 8),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -483,7 +484,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
           return Card(
             color: theme.colorScheme.surfaceContainerHighest,
             child: const Padding(
-              padding: EdgeInsets.all(16),
+              padding: EdgeInsets.all(AppSpacing.lg),
               child: Text(
                   'Никто пока не показывает заметку. Нажмите на имя участника '
                   'выше — и она откроется у всех.'),
@@ -522,7 +523,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
                 if (note == null || note.isEmpty)
                   Card(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                       child: Text('$ownerName не заполнял заметку за этот день.'),
                     ),
                   )
@@ -533,7 +534,7 @@ class _SharedMeetingScreenState extends State<SharedMeetingScreen> {
                     return Card(
                       color: theme.colorScheme.surfaceContainerHighest,
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [

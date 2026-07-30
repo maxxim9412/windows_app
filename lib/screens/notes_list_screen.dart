@@ -4,6 +4,7 @@ import '../data/notes_repository.dart';
 import '../data/passage_repository.dart';
 import '../models/note.dart';
 import '../utils/date_helpers.dart';
+import '../utils/app_dimens.dart';
 
 class NotesListScreen extends StatefulWidget {
   const NotesListScreen({super.key});
@@ -34,7 +35,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
           if (snapshot.hasError) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(32),
+                padding: const EdgeInsets.all(AppSpacing.xxl),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -64,7 +65,7 @@ class _NotesListScreenState extends State<NotesListScreen> {
           if (notes.isEmpty) {
             return const Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: EdgeInsets.all(AppSpacing.xxl),
                 child: Text('Пока нет ни одной заметки.',
                     textAlign: TextAlign.center),
               ),

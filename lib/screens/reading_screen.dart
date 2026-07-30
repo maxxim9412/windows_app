@@ -10,6 +10,7 @@ import '../widgets/catch_up_banner.dart';
 import '../widgets/progress_calendar_button.dart';
 import 'chapter_reader_screen.dart';
 import 'monthly_schedule_screen.dart';
+import '../utils/app_dimens.dart';
 
 /// План чтения на день — списком глав. Текст открывается отдельным экраном:
 /// день вроде «Быт 1–3» — это под сотню стихов, и одним полотном они читались
@@ -131,7 +132,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     children: [
                       Text(humanDate(_day),
                           style: theme.textTheme.titleMedium
@@ -209,7 +210,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   Widget _emptyCard(ThemeData theme) => Card(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

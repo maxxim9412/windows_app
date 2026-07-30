@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../utils/bible_books.dart';
 import '../utils/date_helpers.dart';
 import '../utils/reference_parser.dart';
+import '../utils/app_dimens.dart';
 
 /// Удобное заполнение графика церкви на месяц (только админ): вставляешь список
 /// QT и список чтения — раскладывается с 1 числа (QT по будням Пн–Пт, чтение
@@ -219,7 +220,7 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           // Месяц
           Row(

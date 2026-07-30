@@ -6,6 +6,7 @@ import '../utils/app_themes.dart';
 import 'church_report_screen.dart';
 import 'church_theme_screen.dart';
 import 'monthly_schedule_screen.dart';
+import '../utils/app_dimens.dart';
 
 /// Супер-админ: добавление/удаление церквей, их администраторов и оформления.
 class ChurchManagementScreen extends StatefulWidget {
@@ -136,7 +137,7 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             child: Row(
               children: [
                 Expanded(
@@ -168,7 +169,7 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
                 if (churches.isEmpty) {
                   return const Center(
                     child: Padding(
-                      padding: EdgeInsets.all(32),
+                      padding: EdgeInsets.all(AppSpacing.xxl),
                       child: Text('Пока нет церквей. Добавьте первую выше.',
                           textAlign: TextAlign.center),
                     ),

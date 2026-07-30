@@ -5,6 +5,7 @@ import '../models/reading.dart';
 import '../utils/bible_books.dart';
 import '../utils/date_helpers.dart';
 import 'reading_import_screen.dart';
+import '../utils/app_dimens.dart';
 
 /// Экран администратора для плана ежедневного чтения.
 class ReadingAdminScreen extends StatefulWidget {
@@ -70,7 +71,7 @@ class _ReadingAdminScreenState extends State<ReadingAdminScreen> {
           if (items.isEmpty) {
             return const Center(
               child: Padding(
-                padding: EdgeInsets.all(32),
+                padding: EdgeInsets.all(AppSpacing.xxl),
                 child: Text(
                     'План чтения пуст. Добавьте главы кнопкой ниже или импортом.',
                     textAlign: TextAlign.center),

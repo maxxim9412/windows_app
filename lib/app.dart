@@ -2,16 +2,33 @@ import 'package:flutter/material.dart';
 
 import 'screens/auth_gate.dart';
 import 'services/theme_service.dart';
+import 'utils/app_dimens.dart';
 
 class BibleReflectionApp extends StatelessWidget {
   const BibleReflectionApp({super.key});
 
+  // Card/кнопки — единственные компоненты, чью форму Material берёт из
+  // ThemeData централизованно. Пока это не задано явно, они молча живут по
+  // умолчанию Material 3 и не в курсе AppRadii — значения экрана и темы
+  // расходятся, что и произошло здесь до этой правки.
   ThemeData _theme(int seed, Brightness brightness) => ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: Color(seed),
           brightness: brightness,
         ),
         useMaterial3: true,
+        cardTheme: CardThemeData(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+            ),
+          ),
+        ),
       );
 
   @override

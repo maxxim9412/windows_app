@@ -4,6 +4,7 @@ import '../data/church_repository.dart';
 import '../services/auth_service.dart';
 import '../services/theme_service.dart';
 import '../utils/app_themes.dart';
+import '../utils/app_dimens.dart';
 
 /// Выбор основного цвета оформления для прихожан церкви. Доступен админу церкви
 /// и супер-админу.
@@ -59,7 +60,7 @@ class _ChurchThemeScreenState extends State<ChurchThemeScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Оформление церкви')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           Text(widget.churchName, style: theme.textTheme.titleMedium),
           const SizedBox(height: 4),
@@ -135,7 +136,7 @@ class _Preview extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         border: Border.all(color: scheme.outlineVariant),
       ),
       padding: const EdgeInsets.all(14),
@@ -162,7 +163,7 @@ class _Preview extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
             ),
             padding: const EdgeInsets.all(10),
             child: Column(
@@ -186,7 +187,7 @@ class _Preview extends StatelessWidget {
             width: double.infinity,
             decoration: BoxDecoration(
               color: scheme.primary,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppRadii.lg),
             ),
             padding: const EdgeInsets.symmetric(vertical: 9),
             child: Text('Сохранить',

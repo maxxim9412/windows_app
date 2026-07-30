@@ -16,6 +16,7 @@ import 'church_management_screen.dart';
 import 'church_report_screen.dart';
 import 'church_theme_screen.dart';
 import 'triad_view.dart';
+import '../utils/app_dimens.dart';
 
 /// Раздел «Тройка»: профиль, церковь и управление тройкой.
 class AccountScreen extends StatefulWidget {
@@ -316,7 +317,7 @@ class _AccountScreenState extends State<AccountScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Тройка')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         children: [
           Card(
             child: ListTile(
