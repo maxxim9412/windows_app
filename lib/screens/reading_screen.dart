@@ -38,12 +38,19 @@ class _ReadingScreenState extends State<ReadingScreen> {
   void initState() {
     super.initState();
     SelectedDay.instance.addListener(_onDayChanged);
+    // Не полагаемся на то, что await Navigator.push в _open() дождётся конца
+    // чтения: между главами читалка переходит через pushReplacement, а он
+    // завершает future самой первой открытой главы сразу же, не дожидаясь
+    // остальных — значит, отметки следующих глав иначе не подхватятся.
+    // ProgressRepository оповещает после каждой главы, этого достаточно.
+    ProgressRepository.instance.addListener(_load);
     _load();
   }
 
   @override
   void dispose() {
     SelectedDay.instance.removeListener(_onDayChanged);
+    ProgressRepository.instance.removeListener(_load);
     super.dispose();
   }
 

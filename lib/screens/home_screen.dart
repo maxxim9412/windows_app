@@ -36,6 +36,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   bool _dirty = false; // есть правки, ещё не записанные в хранилище
   bool _saving = false;
+  // «Сохранено» показываем только как отклик на нажатие кнопки, а не на тихое
+  // автосохранение — иначе кнопка сама менялась через секунду после набора
+  // текста, и было непонятно, сохранил ли её вообще кто-то.
+  bool _justSaved = false;
   bool _canEdit = false;
   bool _hasChurch = false;
   Timer? _debounce;
@@ -93,11 +97,15 @@ class _HomeScreenState extends State<HomeScreen> {
       _verses = verses;
       _loading = false;
       _dirty = false;
+      _justSaved = false;
     });
   }
 
   void _onAnyChanged() {
-    if (!_dirty) setState(() => _dirty = true);
+    setState(() {
+      _dirty = true;
+      _justSaved = false;
+    });
     // Автосохранение — тихая подстраховка: срабатывает через секунду после
     // паузы в наборе, чтобы не терять текст. Кнопка при этом остаётся живой.
     _debounce?.cancel();
@@ -129,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _debounce?.cancel();
     if (_dirty) await _saveNote();
     if (mounted && !_dirty) {
+      setState(() => _justSaved = true);
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
         ..showSnackBar(const SnackBar(
@@ -204,8 +213,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Состояние заметки видно всегда, а не 2 секунды после нажатия: «Сохранено»
-  /// держится, пока нет новых правок (в т.ч. после возврата с другой вкладки).
+  /// «Сохранено» — только отклик на нажатие кнопки. Автосохранение работает
+  /// в фоне независимо, но подпись не трогает: иначе она бы сама менялась
+  /// через секунду после любой правки, даже без участия пользователя.
   Widget _buildSaveButton() {
     if (_saving) {
       return FilledButton.icon(
@@ -219,7 +229,7 @@ class _HomeScreenState extends State<HomeScreen> {
         style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
       );
     }
-    final saved = !_dirty && _hasText;
+    final saved = _justSaved && !_dirty && _hasText;
     // Кнопка активна всегда (кроме момента записи): нажатие сохраняет сразу или
     // подтверждает уже сохранённое. Иначе автосохранение гасило её и она
     // казалась нерабочей.
