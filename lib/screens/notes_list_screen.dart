@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/notes_repository.dart';
 import '../data/passage_repository.dart';
 import '../models/note.dart';
+import '../services/selected_day.dart';
 import '../utils/date_helpers.dart';
 import '../utils/app_dimens.dart';
 
@@ -95,6 +96,13 @@ class _NotesListScreenState extends State<NotesListScreen> {
                             maxLines: 2, overflow: TextOverflow.ellipsis),
                       ],
                     ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      // Открыть этот день на QT — тот же переключатель дня,
+                      // что и у «Чтения», экран сам покажет отрывок и заметку.
+                      SelectedDay.instance.select(day);
+                      Navigator.pop(context);
+                    },
                   );
                 },
               );

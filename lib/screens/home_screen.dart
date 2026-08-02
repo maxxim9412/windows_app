@@ -27,6 +27,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final List<TextEditingController> _controllers =
       List.generate(kNoteFieldCount, (_) => TextEditingController());
+  // Превью ответа в заголовке нужно только пока вопрос свёрнут — раскрытый,
+  // он и так виден в поле ниже, дублировать его тем же текстом не нужно.
+  late final List<bool> _expanded =
+      List.generate(kNoteFieldCount, (i) => i == 0);
 
   /// Открытый день — общий с экраном «Чтение» (см. [SelectedDay]).
   DateTime _day = SelectedDay.instance.value;
@@ -244,6 +248,7 @@ class _HomeScreenState extends State<HomeScreen> {
       color: theme.colorScheme.surfaceContainerHighest,
       child: ExpansionTile(
         initiallyExpanded: i == 0,
+        onExpansionChanged: (v) => setState(() => _expanded[i] = v),
         shape: const Border(),
         collapsedShape: const Border(),
         tilePadding: const EdgeInsets.symmetric(horizontal: 16),
@@ -264,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
           animation: controller,
           builder: (_, __) {
             final text = controller.text.trim();
-            if (text.isEmpty) return const SizedBox.shrink();
+            if (_expanded[i] || text.isEmpty) return const SizedBox.shrink();
             return Padding(
               padding: const EdgeInsets.only(top: 2),
               child: Text(text,
