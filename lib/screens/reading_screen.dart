@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/progress_repository.dart';
 import '../data/reading_repository.dart';
 import '../models/reading_chapter.dart';
+import '../services/auth_service.dart';
 import '../services/selected_day.dart';
 import '../utils/date_helpers.dart';
 import '../widgets/catch_up_banner.dart';
@@ -27,6 +28,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
   List<ReadingChapter> _chapters = const [];
   Set<String> _done = const {};
   bool _loading = true;
+  // Подсказка «где добавить график» нужна только админу — рядовому читателю
+  // это просто лишний, ничего не значащий для него текст.
+  bool _canEdit = false;
 
   bool get _isToday => _day == SelectedDay.today;
   bool get _allDone =>
@@ -60,9 +64,11 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final canEdit = await AuthService.instance.isChurchAdmin();
     final readings = await ReadingRepository.instance.forDate(_day);
     final done = await ReadingRepository.instance.doneChapters(_day);
     if (!mounted) return;
+    _canEdit = canEdit;
     setState(() {
       _chapters = ReadingChapter.expandAll(readings);
       _done = done;
@@ -199,13 +205,15 @@ class _ReadingScreenState extends State<ReadingScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('На сегодня чтение не назначено.'),
-              const SizedBox(height: 8),
-              Text(
-                'План чтения — 6 дней в неделю (кроме воскресенья). Админ '
-                'добавляет главы в графике на вкладке «Тройка».',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.outline),
-              ),
+              if (_canEdit) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'План чтения — 6 дней в неделю (кроме воскресенья). Админ '
+                  'добавляет главы в графике на вкладке «Тройка».',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                ),
+              ],
             ],
           ),
         ),

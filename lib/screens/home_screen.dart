@@ -41,6 +41,9 @@ class _HomeScreenState extends State<HomeScreen> {
   // текста, и было непонятно, сохранил ли её вообще кто-то.
   bool _justSaved = false;
   bool _hasChurch = false;
+  // Подсказка «где добавить график» нужна только админу — рядовому читателю
+  // это просто лишний, ничего не значащий для него текст.
+  bool _canEdit = false;
   Timer? _debounce;
 
   bool get _hasText => _controllers.any((c) => c.text.trim().isNotEmpty);
@@ -78,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final churchId = await AuthService.instance.currentChurchId();
+    final canEdit = await AuthService.instance.isChurchAdmin();
     final passage = await PassageRepository.instance.forDate(_day);
     final verses = passage == null
         ? const <({int verse, String text})>[]
@@ -86,6 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
     _hasChurch = churchId != null;
+    _canEdit = canEdit;
     for (var i = 0; i < kNoteFieldCount; i++) {
       _controllers[i].text = note?.answers[i] ?? '';
     }
@@ -182,13 +187,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                       const SizedBox(height: 12),
                       _buildPassageCard(theme),
-                      const SizedBox(height: 24),
-                      Text('Мои размышления',
-                          style: theme.textTheme.titleMedium),
-                      const SizedBox(height: 8),
-                      ...List.generate(kNoteFieldCount, _buildQuestionTile),
-                      const SizedBox(height: 12),
-                      _buildSaveButton(),
+                      // Нечего разбирать, пока нет отрывка — поля заметок
+                      // только путали бы, будто есть что заполнять.
+                      if (_passage != null) ...[
+                        const SizedBox(height: 24),
+                        Text('Мои размышления',
+                            style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 8),
+                        ...List.generate(kNoteFieldCount, _buildQuestionTile),
+                        const SizedBox(height: 12),
+                        _buildSaveButton(),
+                      ],
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -313,13 +322,15 @@ class _HomeScreenState extends State<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text('На сегодня отрывок не назначен.'),
-              const SizedBox(height: 8),
-              Text(
-                'Отрывки назначаются на будни. Админ добавляет их в графике '
-                'на вкладке «Тройка».',
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: theme.colorScheme.outline),
-              ),
+              if (_canEdit) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Отрывки назначаются на будни. Админ добавляет их в графике '
+                  'на вкладке «Тройка».',
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: theme.colorScheme.outline),
+                ),
+              ],
             ],
           ),
         ),
