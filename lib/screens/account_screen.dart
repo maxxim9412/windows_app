@@ -15,6 +15,7 @@ import '../widgets/member_avatar.dart';
 import 'church_management_screen.dart';
 import 'church_report_screen.dart';
 import 'church_theme_screen.dart';
+import 'monthly_schedule_screen.dart';
 import 'triad_view.dart';
 import '../utils/app_dimens.dart';
 
@@ -368,6 +369,28 @@ class _AccountScreenState extends State<AccountScreen> {
                   onPressed: _changeChurch, child: const Text('Изменить')),
             ),
           ),
+          // Супер-админ график своей церкви правит через «Управление
+          // церквями» ниже (там же и любая другая) — вторая карточка была бы
+          // тем же самым действием два раза на одном экране.
+          if (_myChurch != null && _isChurchAdmin && !_isSuperAdmin)
+            Card(
+              color: theme.colorScheme.surfaceContainerHighest,
+              child: ListTile(
+                leading: const Icon(Icons.edit_calendar_outlined),
+                title: const Text('График на месяц'),
+                subtitle: const Text('Отрывки QT и план чтения этой церкви'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MonthlyScheduleScreen(
+                      churchId: _myChurch!.id,
+                      churchName: _myChurch!.name,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_myChurch != null && _isChurchAdmin)
             Card(
               color: theme.colorScheme.surfaceContainerHighest,

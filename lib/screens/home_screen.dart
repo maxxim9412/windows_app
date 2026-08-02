@@ -13,7 +13,6 @@ import '../utils/date_helpers.dart';
 import '../utils/note_questions.dart';
 import '../widgets/catch_up_banner.dart';
 import '../widgets/progress_calendar_button.dart';
-import 'monthly_schedule_screen.dart';
 import 'notes_list_screen.dart';
 import 'settings_screen.dart';
 import '../utils/app_dimens.dart';
@@ -41,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
   // автосохранение — иначе кнопка сама менялась через секунду после набора
   // текста, и было непонятно, сохранил ли её вообще кто-то.
   bool _justSaved = false;
-  bool _canEdit = false;
   bool _hasChurch = false;
   Timer? _debounce;
 
@@ -80,7 +78,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     final churchId = await AuthService.instance.currentChurchId();
-    final canEdit = await AuthService.instance.isChurchAdmin();
     final passage = await PassageRepository.instance.forDate(_day);
     final verses = passage == null
         ? const <({int verse, String text})>[]
@@ -89,7 +86,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
     _hasChurch = churchId != null;
-    _canEdit = canEdit;
     for (var i = 0; i < kNoteFieldCount; i++) {
       _controllers[i].text = note?.answers[i] ?? '';
     }
@@ -162,18 +158,6 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: () => Navigator.push(context,
                 MaterialPageRoute(builder: (_) => const NotesListScreen())),
           ),
-          if (_canEdit)
-            IconButton(
-              tooltip: 'График на месяц',
-              icon: const Icon(Icons.edit_calendar_outlined),
-              onPressed: () async {
-                await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const MonthlyScheduleScreen()));
-                _load();
-              },
-            ),
           IconButton(
             tooltip: 'Напоминания',
             icon: const Icon(Icons.notifications_outlined),
@@ -331,8 +315,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const Text('На сегодня отрывок не назначен.'),
               const SizedBox(height: 8),
               Text(
-                'Отрывки назначаются на будни. Добавьте их в «Расписании отрывков» '
-                '(значок календаря вверху).',
+                'Отрывки назначаются на будни. Админ добавляет их в графике '
+                'на вкладке «Тройка».',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),
               ),

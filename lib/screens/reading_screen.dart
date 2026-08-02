@@ -3,13 +3,11 @@ import 'package:flutter/material.dart';
 import '../data/progress_repository.dart';
 import '../data/reading_repository.dart';
 import '../models/reading_chapter.dart';
-import '../services/auth_service.dart';
 import '../services/selected_day.dart';
 import '../utils/date_helpers.dart';
 import '../widgets/catch_up_banner.dart';
 import '../widgets/progress_calendar_button.dart';
 import 'chapter_reader_screen.dart';
-import 'monthly_schedule_screen.dart';
 import '../utils/app_dimens.dart';
 
 /// План чтения на день — списком глав. Текст открывается отдельным экраном:
@@ -29,7 +27,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
   List<ReadingChapter> _chapters = const [];
   Set<String> _done = const {};
   bool _loading = true;
-  bool _canEdit = false;
 
   bool get _isToday => _day == SelectedDay.today;
   bool get _allDone =>
@@ -63,7 +60,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    _canEdit = await AuthService.instance.isChurchAdmin();
     final readings = await ReadingRepository.instance.forDate(_day);
     final done = await ReadingRepository.instance.doneChapters(_day);
     if (!mounted) return;
@@ -109,20 +105,8 @@ class _ReadingScreenState extends State<ReadingScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ежедневное чтение'),
-        actions: [
-          const ProgressCalendarButton(),
-          if (_canEdit)
-            IconButton(
-              tooltip: 'График на месяц',
-              icon: const Icon(Icons.edit_calendar_outlined),
-              onPressed: () async {
-                await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => const MonthlyScheduleScreen()));
-                _load();
-              },
-            ),
+        actions: const [
+          ProgressCalendarButton(),
         ],
       ),
       body: Column(
@@ -217,8 +201,8 @@ class _ReadingScreenState extends State<ReadingScreen> {
               const Text('На сегодня чтение не назначено.'),
               const SizedBox(height: 8),
               Text(
-                'План чтения — 6 дней в неделю (кроме воскресенья). Добавьте главы '
-                'в «Плане чтения» (значок календаря вверху).',
+                'План чтения — 6 дней в неделю (кроме воскресенья). Админ '
+                'добавляет главы в графике на вкладке «Тройка».',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.outline),
               ),

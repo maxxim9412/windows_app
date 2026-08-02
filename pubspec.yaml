@@ -1,7 +1,7 @@
 name: bible_reflection
 description: "Размышления над Библией — отрывок дня, личные заметки и напоминания."
 publish_to: 'none'
-version: 0.7.3+31
+version: 0.7.4+32
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
