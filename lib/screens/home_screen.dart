@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _passageExpanded = false;
   Timer? _debounce;
 
-  static const _collapsedVerseCount = 3;
+  static const _collapsedMaxLines = 5;
 
   bool get _hasText => _controllers.any((c) => c.text.trim().isNotEmpty);
 
@@ -348,10 +348,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    final truncated = !_passageExpanded && _verses.length > _collapsedVerseCount;
-    final shownVerses =
-        truncated ? _verses.take(_collapsedVerseCount).toList() : _verses;
-
     return Card(
       elevation: 0,
       color: theme.colorScheme.surfaceContainerHighest,
@@ -387,8 +383,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: theme.colorScheme.error),
                 )
-              else ...[
-                ...shownVerses.map(
+              else if (_passageExpanded)
+                ..._verses.map(
                   (v) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
                     child: RichText(
@@ -409,13 +405,44 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                ),
-                if (truncated)
-                  Text(
-                    'Ещё ${_verses.length - _collapsedVerseCount} ст. — нажмите, чтобы развернуть',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.outline),
+                )
+              else ...[
+                // Одним Text.rich на весь отрывок — так лишний текст сам
+                // обрывается многоточием там, где кончаются строки, а не по
+                // границе стиха: сразу видно, что показано не всё.
+                Text.rich(
+                  TextSpan(
+                    style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                    children: [
+                      for (final v in _verses) ...[
+                        TextSpan(
+                          text: '${v.verse} ',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: theme.colorScheme.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(text: '${v.text} '),
+                      ],
+                    ],
                   ),
+                  maxLines: _collapsedMaxLines,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Icon(Icons.unfold_more,
+                        size: 16, color: theme.colorScheme.outline),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Нажмите, чтобы развернуть',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: theme.colorScheme.outline),
+                    ),
+                  ],
+                ),
               ],
             ],
           ),
