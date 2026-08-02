@@ -48,7 +48,12 @@ class _HomeScreenState extends State<HomeScreen> {
   // Подсказка «где добавить график» нужна только админу — рядовому читателю
   // это просто лишний, ничего не значащий для него текст.
   bool _canEdit = false;
+  // Свёрнут ли отрывок: по умолчанию да, чтобы первый вопрос анкеты был
+  // виден сразу, без прокрутки мимо длинного текста.
+  bool _passageExpanded = false;
   Timer? _debounce;
+
+  static const _collapsedVerseCount = 3;
 
   bool get _hasText => _controllers.any((c) => c.text.trim().isNotEmpty);
 
@@ -104,6 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _loading = false;
       _dirty = false;
       _justSaved = false;
+      _passageExpanded = false;
     });
   }
 
@@ -342,49 +348,77 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    final truncated = !_passageExpanded && _verses.length > _collapsedVerseCount;
+    final shownVerses =
+        truncated ? _verses.take(_collapsedVerseCount).toList() : _verses;
+
     return Card(
       elevation: 0,
       color: theme.colorScheme.surfaceContainerHighest,
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(passage.reference,
-                style: theme.textTheme.titleLarge
-                    ?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            if (_verses.isEmpty)
-              Text(
-                'Текста этого отрывка нет в подключённой базе перевода.\n'
-                'В образце всего несколько отрывков — подключите полный '
-                'Синодальный перевод (см. README).',
-                style: theme.textTheme.bodyMedium
-                    ?.copyWith(color: theme.colorScheme.error),
-              )
-            else
-              ..._verses.map(
-                (v) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: RichText(
-                    text: TextSpan(
-                      style: theme.textTheme.bodyLarge?.copyWith(height: 1.5),
-                      children: [
-                        TextSpan(
-                          text: '${v.verse} ',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.bold,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        onTap: () => setState(() => _passageExpanded = !_passageExpanded),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(passage.reference,
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w600)),
+                  ),
+                  Icon(
+                    _passageExpanded
+                        ? Icons.expand_less
+                        : Icons.expand_more,
+                    color: theme.colorScheme.outline,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (_verses.isEmpty)
+                Text(
+                  'Текста этого отрывка нет в подключённой базе перевода.\n'
+                  'В образце всего несколько отрывков — подключите полный '
+                  'Синодальный перевод (см. README).',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.colorScheme.error),
+                )
+              else ...[
+                ...shownVerses.map(
+                  (v) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: RichText(
+                      text: TextSpan(
+                        style:
+                            theme.textTheme.bodyLarge?.copyWith(height: 1.5),
+                        children: [
+                          TextSpan(
+                            text: '${v.verse} ',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        TextSpan(text: v.text),
-                      ],
+                          TextSpan(text: v.text),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
+                if (truncated)
+                  Text(
+                    'Ещё ${_verses.length - _collapsedVerseCount} ст. — нажмите, чтобы развернуть',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.outline),
+                  ),
+              ],
+            ],
+          ),
         ),
       ),
     );
