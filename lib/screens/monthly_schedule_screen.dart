@@ -11,7 +11,9 @@ import '../utils/app_dimens.dart';
 
 /// Удобное заполнение графика церкви на месяц (только админ): вставляешь список
 /// QT и список чтения — раскладывается с 1 числа (QT по будням Пн–Пт, чтение
-/// 6 дней/нед кроме вс) и ПОЛНОСТЬЮ заменяет график месяца у этой церкви.
+/// 6 дней/нед кроме вс) и заменяет график месяца у этой церкви. Пустое поле —
+/// соответствующий график (QT или чтение) не трогается, можно обновлять их
+/// по отдельности.
 ///
 /// Церковь задаётся явно и всегда видна в шапке. Раньше экран молча писал в
 /// церковь самого редактора: супер-админ, правивший «график новой церкви»,
@@ -141,12 +143,18 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
     final readings = church.collection('readings');
     final batch = db.batch();
 
-    // 1) Полностью очищаем месяц.
+    // Пустое поле — этот график трогать не нужно: ни чистить, ни
+    // переписывать. Иначе применение одного графика стирало бы другой
+    // за тот же месяц.
+    final touchQt = _qtCtrl.text.trim().isNotEmpty;
+    final touchReading = _readCtrl.text.trim().isNotEmpty;
+
+    // 1) Очищаем месяц — только у того графика, что реально меняем.
     final last = DateTime(_month.year, _month.month + 1, 0).day;
     for (var d = 1; d <= last; d++) {
       final key = dateKey(DateTime(_month.year, _month.month, d));
-      batch.delete(passages.doc(key));
-      batch.delete(readings.doc(key));
+      if (touchQt) batch.delete(passages.doc(key));
+      if (touchReading) batch.delete(readings.doc(key));
     }
 
     // 2) QT по будням.
@@ -241,9 +249,10 @@ class _MonthlyScheduleScreenState extends State<MonthlyScheduleScreen> {
           const SizedBox(height: 8),
           Text(
             'Вставьте списки — они разложатся с 1 числа. QT — по будням (Пн–Пт), '
-            'чтение — 6 дней в неделю (кроме воскресенья). Применение полностью '
-            'заменяет график этого месяца у церкви «$_churchName» — и больше '
-            'ни у какой.',
+            'чтение — 6 дней в неделю (кроме воскресенья). Применение заменяет '
+            'график этого месяца у церкви «$_churchName» — и больше ни у какой. '
+            'Оставьте поле пустым, если этот график менять не нужно — он '
+            'останется как есть.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.outline),
           ),
