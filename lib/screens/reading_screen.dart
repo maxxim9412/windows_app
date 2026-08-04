@@ -76,21 +76,6 @@ class _ReadingScreenState extends State<ReadingScreen> {
     });
   }
 
-  Future<void> _toggle(ReadingChapter c) async {
-    final value = !_done.contains(c.key);
-    final next = Set<String>.from(_done);
-    value ? next.add(c.key) : next.remove(c.key);
-    setState(() => _done = next);
-
-    await ReadingRepository.instance.setChapterDone(
-      _day,
-      c.key,
-      value,
-      dayComplete: _chapters.every((x) => next.contains(x.key)),
-    );
-    ProgressRepository.instance.invalidate();
-  }
-
   Future<void> _open(int index) async {
     await Navigator.push(
       context,
@@ -147,7 +132,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                         const SizedBox(height: 12),
                         Text(
                           'Нажмите на главу, чтобы читать. Кружок слева — '
-                          'отметка, если читали не здесь.',
+                          'отметка о прочтении.',
                           style: theme.textTheme.bodySmall
                               ?.copyWith(color: theme.colorScheme.outline),
                         ),
@@ -179,13 +164,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
     final done = _done.contains(c.key);
     return ListTile(
       onTap: () => _open(i),
-      leading: IconButton(
-        tooltip: done ? 'Снять отметку' : 'Отметить прочитанной',
-        icon: Icon(
-          done ? Icons.check_circle : Icons.circle_outlined,
-          color: done ? theme.colorScheme.primary : theme.colorScheme.outline,
-        ),
-        onPressed: () => _toggle(c),
+      leading: Icon(
+        done ? Icons.check_circle : Icons.circle_outlined,
+        color: done ? theme.colorScheme.primary : theme.colorScheme.outline,
       ),
       title: Text(
         c.reference,
