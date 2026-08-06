@@ -5,6 +5,7 @@ import '../models/church.dart';
 import '../utils/app_themes.dart';
 import 'church_report_screen.dart';
 import 'church_theme_screen.dart';
+import 'incomplete_profiles_screen.dart';
 import 'monthly_schedule_screen.dart';
 import '../utils/app_dimens.dart';
 
@@ -155,6 +156,18 @@ class _ChurchManagementScreenState extends State<ChurchManagementScreen> {
                 FilledButton(
                     onPressed: _addChurch, child: const Text('Добавить')),
               ],
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.person_search_outlined),
+            title: const Text('Без церкви / телефона'),
+            subtitle: const Text(
+                'Зарегистрировались, но не завершили профиль'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (_) => const IncompleteProfilesScreen()),
             ),
           ),
           const Divider(height: 1),

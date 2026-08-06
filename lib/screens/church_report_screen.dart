@@ -127,6 +127,10 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
               ],
               if (r.withoutTriad?.isNotEmpty ?? false)
                 _withoutTriadSection(theme, r.withoutTriad!),
+              if (r.withoutPhone?.isNotEmpty ?? false) ...[
+                const SizedBox(height: 16),
+                _withoutPhoneSection(theme, r.withoutPhone!),
+              ],
               const SizedBox(height: 12),
               Text(
                 'Нажмите на человека, чтобы скопировать его телефон '
@@ -149,6 +153,8 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
       if (r.totalMembers != null) _tile(theme, 'Всего людей', '${r.totalMembers}'),
       if (r.withoutTriad != null)
         _tile(theme, 'Без тройки', '${r.withoutTriad!.length}'),
+      if (r.withoutPhone != null)
+        _tile(theme, 'Без телефона', '${r.withoutPhone!.length}'),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,8 +163,9 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
         if (r.totalMembers == null) ...[
           const SizedBox(height: 12),
           Text(
-            'Общее число людей в церкви видно только главному администратору: '
-            'профили прихожан закрыты, и запрет распространяется и на подсчёт.',
+            'Общее число людей в церкви видно только админам этой церкви и '
+            'супер-админу: профили прихожан закрыты, и запрет распространяется '
+            'и на подсчёт.',
             style: theme.textTheme.bodySmall
                 ?.copyWith(color: theme.colorScheme.outline),
           ),
@@ -350,7 +357,7 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
   }
 
   /// Кто ещё не в тройке — самое полезное для «позвать». Видно только тому, кто
-  /// может читать профили, то есть супер-админу.
+  /// может читать профили этой церкви — её админам и супер-админу.
   Widget _withoutTriadSection(ThemeData theme, List<ChurchPerson> people) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,6 +380,31 @@ class _ChurchReportScreenState extends State<ChurchReportScreen> {
               ),
           ],
         ),
+        const SizedBox(height: 8),
+        Card(
+          elevation: 0,
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Column(
+              children: [
+                for (final p in people)
+                  _personRow(theme, p.displayName, p.email, p.phone),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Кто без телефона — обычно старые аккаунты (регистрировались до того, как
+  /// поле стало обязательным) либо очень старые записи, ещё без проверки.
+  Widget _withoutPhoneSection(ThemeData theme, List<ChurchPerson> people) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Без телефона', style: theme.textTheme.titleMedium),
         const SizedBox(height: 8),
         Card(
           elevation: 0,

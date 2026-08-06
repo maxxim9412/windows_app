@@ -167,42 +167,59 @@ class _AccountScreenState extends State<AccountScreen> {
   Future<void> _editProfile(String currentName, String currentPhone) async {
     final nameCtrl = TextEditingController(text: currentName);
     final phoneCtrl = TextEditingController(text: currentPhone);
+    final formKey = GlobalKey<FormState>();
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Ваши данные'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              autofocus: true,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Имя',
-                hintText: 'Как вас видят в тройке',
-                border: OutlineInputBorder(),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(
+                  labelText: 'Имя',
+                  hintText: 'Как вас видят в тройке',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Телефон',
-                helperText: 'Виден только вашей тройке и администраторам',
-                helperMaxLines: 2,
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              // Телефон обязателен — без него человек выпадает из отчёта
+              // и его не могут найти; править на пустой запрещают и правила
+              // Firestore, но проверяем и здесь, чтобы не ловить ошибку сервера.
+              TextFormField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Телефон',
+                  helperText: 'Виден только вашей тройке и администраторам',
+                  helperMaxLines: 2,
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) {
+                  final s = (v ?? '').trim();
+                  if (s.isEmpty) return 'Введите телефон';
+                  final digits = s.replaceAll(RegExp(r'[^0-9]'), '').length;
+                  return digits < 10 ? 'Похоже, номер неполный' : null;
+                },
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Отмена')),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(context, true);
+              }
+            },
             child: const Text('Сохранить'),
           ),
         ],
