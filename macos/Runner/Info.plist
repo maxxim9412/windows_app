@@ -36,5 +36,10 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<!-- Экспериментальное слияние UI/platform-потоков сейчас включено по
+	умолчанию в этой версии Flutter и совпадает с чёрным окном при запуске
+	(движок не рисует первый кадр). Явно отключаем. -->
+	<key>FLTEnableMergedPlatformUIThread</key>
+	<false/>
 </dict>
 </plist>

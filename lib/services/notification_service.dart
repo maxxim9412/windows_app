@@ -26,9 +26,13 @@ class NotificationService {
     tz.setLocalLocation(_localLocation());
 
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosInit = DarwinInitializationSettings();
+    // DarwinInitializationSettings общий для iOS и macOS. Без macOS: здесь
+    // плагин бросает необработанное исключение прямо в main() — на macOS
+    // это гасило весь Dart-изолят ещё до первого кадра (чёрное окно).
+    const darwinInit = DarwinInitializationSettings();
     await _plugin.initialize(
-      const InitializationSettings(android: androidInit, iOS: iosInit),
+      const InitializationSettings(
+          android: androidInit, iOS: darwinInit, macOS: darwinInit),
     );
   }
 
@@ -55,12 +59,21 @@ class NotificationService {
         ) ??
         true;
 
+    final macos = _plugin.resolvePlatformSpecificImplementation<
+        MacOSFlutterLocalNotificationsPlugin>();
+    final macosGranted = await macos?.requestPermissions(
+          alert: true,
+          badge: true,
+          sound: true,
+        ) ??
+        true;
+
     final android = _plugin.resolvePlatformSpecificImplementation<
         AndroidFlutterLocalNotificationsPlugin>();
     final androidGranted =
         await android?.requestNotificationsPermission() ?? true;
 
-    return iosGranted && androidGranted;
+    return iosGranted && macosGranted && androidGranted;
   }
 
   /// Запланировать напоминания на будни в [hour]:[minute].
@@ -77,6 +90,7 @@ class NotificationService {
         priority: Priority.high,
       ),
       iOS: DarwinNotificationDetails(),
+      macOS: DarwinNotificationDetails(),
     );
 
     // DateTime.monday == 1 ... DateTime.friday == 5 совпадает с _weekdayIds.
