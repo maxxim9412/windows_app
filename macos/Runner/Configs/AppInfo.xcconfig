@@ -4,8 +4,11 @@
 // future. If not, the values below would default to using the project name when this becomes a
 // 'flutter create' template.
 
-// The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = Размышления над Библией
+// The application's name. Это ещё и имя исполняемого файла и папки .app —
+// кириллица с пробелами в этой роли ломает codesign ("code object is not
+// signed at all" на Contents/MacOS/<имя>). Красивое имя — через
+// CFBundleDisplayName в Info.plist, оно не обязано совпадать с этим.
+PRODUCT_NAME = bible_reflection
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = app.qt.reflection

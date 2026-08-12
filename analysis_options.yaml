@@ -5,6 +5,9 @@ analyzer:
     # Локальная копия стороннего пакета (см. dependency_overrides в
     # pubspec.yaml) — не наш код, свой линт не применяем.
     - third_party/**
+    # Артефакты сборки — build/macos тянет исходники SPM-пакетов (включая
+    # тесты flutterfire) прямо в дерево проекта.
+    - build/**
 
 linter:
   rules:
