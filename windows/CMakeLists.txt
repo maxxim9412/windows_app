@@ -11,6 +11,13 @@ set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
 project(bible_reflection LANGUAGES CXX)
 
+# permission_handler_windows (0.2.1) собирается с /await и старым
+# <experimental/coroutine> — свежий MSVC (Visual Studio 18 на раннере)
+# сделал это жёсткой ошибкой компиляции вместо предупреждения. Макрос ниже —
+# официально указанный самой ошибкой обход; ставим глобально до
+# add_subdirectory(), чтобы подхватилось у всех плагинов.
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # The name of the executable created for the application. Change this to change
 # the on-disk name of your application.
 set(BINARY_NAME "bible_reflection")
