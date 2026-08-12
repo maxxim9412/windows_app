@@ -1,5 +1,11 @@
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Локальная копия стороннего пакета (см. dependency_overrides в
+    # pubspec.yaml) — не наш код, свой линт не применяем.
+    - third_party/**
+
 linter:
   rules:
     prefer_const_constructors: true

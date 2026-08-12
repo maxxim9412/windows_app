@@ -57,6 +57,17 @@ dev_dependencies:
   flutter_lints: ^4.0.0
   flutter_launcher_icons: ^0.14.1
 
+# Локальная копия agora_rtc_engine 6.5.4 с одной правкой в windows/cmake/
+# DownloadSDK.cmake: у оригинала распаковка SDK падает на Windows-сборке,
+# потому что путь идёт через flutter/ephemeral/.plugin_symlinks (симлинк,
+# которым Flutter коротит длинные пути пакетов) — libarchive отказывается
+# писать через симлинк. См. third_party/agora_rtc_engine/windows/cmake/
+# DownloadSDK.cmake — резолвим реальный путь перед распаковкой. Уберите
+# override, когда апстрим это исправит.
+dependency_overrides:
+  agora_rtc_engine:
+    path: third_party/agora_rtc_engine
+
 # Иконка приложения. Положите PNG 1024x1024 в assets/icon/icon.png и выполните:
 #   dart run flutter_launcher_icons
 flutter_launcher_icons:
