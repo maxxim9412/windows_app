@@ -1,5 +1,14 @@
 # Project-level configuration.
 cmake_minimum_required(VERSION 3.14)
+
+# Плагины (например, firebase_cpp_sdk, который тянет cloud_firestore/
+# firebase_auth) объявляют cmake_minimum_required с версией ниже 3.5 —
+# начиная с CMake 3.31 такая совместимость убрана и это стало жёсткой
+# ошибкой ("Compatibility with CMake < 3.5 has been removed"). Официальный
+# обход — CMAKE_POLICY_VERSION_MINIMUM, до project()/add_subdirectory(),
+# чтобы подхватился во всех вложенных CMakeLists.txt.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 project(bible_reflection LANGUAGES CXX)
 
 # The name of the executable created for the application. Change this to change
