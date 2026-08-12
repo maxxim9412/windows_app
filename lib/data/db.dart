@@ -1,6 +1,8 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 /// Единая точка доступа к локальной БД (заметки + расписание отрывков).
@@ -19,6 +21,14 @@ class AppDatabase {
     if (kIsWeb) {
       databaseFactory = databaseFactoryFfiWebNoWebWorker; // SQLite через WASM в браузере
       path = 'bible_reflection.db';
+    } else if (defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux) {
+      // У sqflite нет нативной реализации для Windows/Linux — через FFI
+      // (macOS и мобильные платформы уже поддержаны сами по себе).
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+      final dir = await getApplicationSupportDirectory();
+      path = p.join(dir.path, 'bible_reflection.db');
     } else {
       final dir = await getDatabasesPath();
       path = p.join(dir, 'bible_reflection.db');

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -116,7 +117,12 @@ class _AccountScreenState extends State<AccountScreen> {
 
     // На Android камера объявлена в манифесте (её требует Agora), поэтому
     // системный снимок не сработает без выданного разрешения — просим явно.
-    if (action == 'camera' && !kIsWeb) {
+    // permission_handler не поддерживает macOS и Linux — там за разрешение
+    // отвечает сама ОС (Info.plist/portal), запрашивать через плагин не нужно.
+    if (action == 'camera' &&
+        !kIsWeb &&
+        defaultTargetPlatform != TargetPlatform.macOS &&
+        defaultTargetPlatform != TargetPlatform.linux) {
       final st = await Permission.camera.request();
       if (!st.isGranted) {
         if (mounted) {

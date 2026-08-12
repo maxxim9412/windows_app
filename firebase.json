@@ -13,7 +13,9 @@
           "projectId": "bible-reflection",
           "configurations": {
             "android": "1:96467453228:android:f9e39320e2bef3e2591889",
-            "web": "1:96467453228:web:70cdf51cda13cfc7591889"
+            "web": "1:96467453228:web:70cdf51cda13cfc7591889",
+            "windows": "1:96467453228:web:cc648aaf12b19b96591889",
+            "macos": "1:96467453228:ios:a03bd0e9bc838266591889"
           }
         }
       }

@@ -16,11 +16,12 @@ pubspec.lock
 
 # Платформенные папки (сгенерируются `flutter create .`)
 # Если решишь версионировать их — убери из игнора.
+# macos/ и windows/ версионируются: без них нечего собирать в CI
+# (windows-build.yml), а macos/ несёт ручные правки (Info.plist,
+# entitlements, bundle id) — «flutter create» их не восстановит.
 /android/
 /ios/
-/macos/
 /linux/
-/windows/
 /web/
 
 # Firebase

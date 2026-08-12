@@ -63,6 +63,12 @@ class ChurchReport {
 /// Зарегистрировался, но не завершил профиль: нет церкви и/или телефона.
 /// Такие люди не попадают ни в один отчёт по церкви (там выборка идёт по
 /// churchId), поэтому нужен отдельный, сквозной по всем церквям список.
+///
+/// Сюда же попадают те, у кого churchId записан, но указывает на уже
+/// удалённую церковь: такой человек невидим ВЕЗДЕ — в выпадашке церквей для
+/// отчёта её больше нет, а значит, и запрос по этому churchId никто никогда
+/// не сделает. [churchDangling] отличает этот случай от «церковь и не
+/// выбирали», чтобы в интерфейсе не путать одно с другим.
 class IncompleteProfile {
   const IncompleteProfile({
     required this.uid,
@@ -70,6 +76,7 @@ class IncompleteProfile {
     required this.email,
     required this.phone,
     required this.churchId,
+    required this.churchValid,
     this.createdAt,
   });
 
@@ -78,10 +85,13 @@ class IncompleteProfile {
   final String email;
   final String phone;
   final String? churchId;
+  final bool churchValid;
   final DateTime? createdAt;
 
   String get displayName => name.trim().isEmpty ? 'Без имени' : name;
-  bool get missingChurch => churchId == null || churchId!.isEmpty;
+  bool get missingChurch => !churchValid;
+  bool get churchDangling =>
+      !churchValid && churchId != null && churchId!.isNotEmpty;
   bool get missingPhone => phone.trim().isEmpty;
 }
 
@@ -133,20 +143,27 @@ class ReportRepository {
     return ChurchReport(triads: triads, members: members);
   }
 
-  /// Кто зарегистрировался, но не выбрал церковь и/или не указал телефон.
-  /// Доступно только супер-админу — как и остальное чтение чужих профилей.
+  /// Кто зарегистрировался, но не выбрал церковь (или её потом удалили) и/или
+  /// не указал телефон. Доступно только супер-админу — как и остальное чтение
+  /// чужих профилей.
   Future<List<IncompleteProfile>> incompleteProfiles() async {
     if (!await AuthService.instance.isAdmin()) return const [];
+    final churches = await ChurchRepository.instance.allChurches();
+    final validChurchIds = {for (final c in churches) c.id};
     final q = await _db.collection('users').get();
     final people = q.docs
         .map((d) {
           final data = d.data();
+          final churchId = data['churchId'] as String?;
           return IncompleteProfile(
             uid: d.id,
             name: (data['name'] as String?) ?? '',
             email: (data['email'] as String?) ?? '',
             phone: (data['phone'] as String?) ?? '',
-            churchId: data['churchId'] as String?,
+            churchId: churchId,
+            churchValid: churchId != null &&
+                churchId.isNotEmpty &&
+                validChurchIds.contains(churchId),
             createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
           );
         })

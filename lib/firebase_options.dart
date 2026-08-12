@@ -28,15 +28,9 @@ class DefaultFirebaseOptions {
           'you can reconfigure this by running the FlutterFire CLI again.',
         );
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -60,6 +54,26 @@ class DefaultFirebaseOptions {
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyBGNe8YzzohF_jCDeSwbyITNYkpIITrw-M',
     appId: '1:96467453228:web:70cdf51cda13cfc7591889',
+    messagingSenderId: '96467453228',
+    projectId: 'bible-reflection',
+    authDomain: 'bible-reflection.firebaseapp.com',
+    databaseURL: 'https://bible-reflection-default-rtdb.europe-west1.firebasedatabase.app',
+    storageBucket: 'bible-reflection.firebasestorage.app',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyCdtWn1hqyWi4XsRCEhv-XfumBTE3m-wmk',
+    appId: '1:96467453228:ios:a03bd0e9bc838266591889',
+    messagingSenderId: '96467453228',
+    projectId: 'bible-reflection',
+    databaseURL: 'https://bible-reflection-default-rtdb.europe-west1.firebasedatabase.app',
+    storageBucket: 'bible-reflection.firebasestorage.app',
+    iosBundleId: 'app.qt.reflection',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyBGNe8YzzohF_jCDeSwbyITNYkpIITrw-M',
+    appId: '1:96467453228:web:cc648aaf12b19b96591889',
     messagingSenderId: '96467453228',
     projectId: 'bible-reflection',
     authDomain: 'bible-reflection.firebaseapp.com',

@@ -98,7 +98,10 @@ class _IncompleteProfilesScreenState extends State<IncompleteProfilesScreen> {
     final label =
         p.phone.isNotEmpty ? 'Телефон скопирован' : 'Почта скопирована';
     final missing = [
-      if (p.missingChurch) 'без церкви',
+      if (p.churchDangling)
+        'церковь удалена'
+      else if (p.missingChurch)
+        'без церкви',
       if (p.missingPhone) 'без телефона',
     ].join(', ');
     final churchNote =
