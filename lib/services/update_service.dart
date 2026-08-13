@@ -4,20 +4,21 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-/// Доступное обновление сайдлоад-сборки (Android APK или macOS DMG).
+/// Доступное обновление сайдлоад-сборки (Android APK, macOS DMG или Windows
+/// установщик).
 class UpdateInfo {
   const UpdateInfo({required this.versionName, required this.downloadUrl});
   final String versionName;
   final String downloadUrl;
 }
 
-/// Проверка обновлений для сайдлоад-версий (Android APK и macOS DMG — обе
-/// вне магазинов, сами не обновляются).
+/// Проверка обновлений для сайдлоад-версий (Android APK, macOS DMG, Windows
+/// установщик — все вне магазинов, сами не обновляются).
 ///
 /// Схема: манифест [_manifestUrl] лежит на нашем хостинге (публикуется при
 /// каждой сборке) и содержит отдельный раздел на каждую платформу — номера
 /// сборок не сравнимы между собой (у Android versionCode со смещением по
-/// ABI, у macOS — обычный номер сборки из pubspec). Сам файл — на
+/// ABI, у остальных — обычный номер сборки из pubspec). Сам файл — на
 /// Яндекс.Диске по постоянной ссылке, которую владелец заменяет вручную.
 /// Между «объявили новую версию» и «залили новый файл» есть окно: чтобы не
 /// отправить человека качать ещё старый файл, перед показом плашки сверяем
@@ -39,6 +40,8 @@ class UpdateService {
         return 'android';
       case TargetPlatform.macOS:
         return 'macos';
+      case TargetPlatform.windows:
+        return 'windows';
       default:
         return null;
     }

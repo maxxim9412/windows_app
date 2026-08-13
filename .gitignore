@@ -26,3 +26,6 @@ pubspec.lock
 
 # Firebase
 .firebase/
+
+# Windows-установщик (собирается в CI, см. windows/installer/installer.iss)
+/installer_output/

@@ -29,3 +29,30 @@ jobs:
           name: bible_reflection-windows
           path: build/windows/x64/runner/Release/
           if-no-files-found: error
+
+      # Версия для установщика — берём прямо из pubspec.yaml (строка вида
+      # "version: 0.7.12+40"), без номера сборки после "+".
+      - name: Read app version
+        id: version
+        shell: pwsh
+        run: |
+          $line = Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$'
+          $full = $line.Matches[0].Groups[1].Value.Trim()
+          $version = $full.Split('+')[0]
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" `
+            "/DMyAppVersion=${{ steps.version.outputs.version }}" `
+            windows\installer\installer.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bible_reflection-windows-installer
+          path: installer_output/QT-Setup.exe
+          if-no-files-found: error
