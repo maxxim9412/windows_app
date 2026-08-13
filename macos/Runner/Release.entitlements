@@ -2,13 +2,11 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Песочница нужна только для публикации через Mac App Store — вне её
-	она лишь требует по одному разрешению на каждую возможность (сеть,
-	камера, микрофон, файлы) и всё равно ломает Firebase Auth (Keychain
-	в песочнице требует Keychain Sharing с настоящей команды разработчика,
-	которой у нас нет). Без песочницы приложение работает как обычное
-	Mac-приложение, без этих ограничений. -->
 	<key>com.apple.security.app-sandbox</key>
 	<false/>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)app.qt.reflection</string>
+	</array>
 </dict>
 </plist>

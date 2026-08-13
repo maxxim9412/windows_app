@@ -31,7 +31,13 @@ class UpdateService {
   /// по ссылке — уже новый. В вебе всегда null (там приложение обновляется само).
   /// Никогда не бросает: не смогли проверить — просто не показываем плашку.
   Future<UpdateInfo?> check() async {
-    if (kIsWeb) return null;
+    // APK-манифест сравнивается по versionCode Android (со смещением по ABI,
+    // см. память проекта) — на других платформах номер сборки всегда меньше
+    // этого числа, и проверка решила бы, что обновление есть всегда, отправляя
+    // macOS/Windows-пользователя качать Android APK.
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      return null;
+    }
     try {
       final data = await _getJson(Uri.parse(_manifestUrl));
       if (data == null) return null;
