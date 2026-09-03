@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'shared_meeting_screen.dart';
+import 'triad_calendar_screen.dart';
 
 import '../data/notes_repository.dart';
 import '../models/note.dart';
@@ -406,6 +407,21 @@ class _MemberView extends StatelessWidget {
           icon: const Icon(Icons.headset_mic),
           label: const Text('Совместная встреча'),
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+        ),
+        const SizedBox(height: 8),
+
+        // Календарь тройки: кто и когда писал заметки — можно почитать не
+        // только сегодняшнюю, но и прошлые.
+        OutlinedButton.icon(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (_) => TriadCalendarScreen(triad: triad)),
+          ),
+          icon: const Icon(Icons.calendar_month_outlined),
+          label: const Text('Календарь'),
+          style:
+              OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
         ),
         const SizedBox(height: 16),
 

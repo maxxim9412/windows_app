@@ -113,6 +113,28 @@ class NotesRepository {
     }).handleError((_) => null);
   }
 
+  /// Даты (yyyy-MM-dd) внутри месяца, когда участник тройки написал заметку.
+  /// Один запрос на месяц (диапазон по id документа = дате), а не по каждому
+  /// дню — иначе календарь тройки делал бы до 31 чтения на участника.
+  /// Документ существует только если заметка непустая (см. save()), поэтому
+  /// само наличие документа уже значит «написал».
+  Future<Set<String>> memberNoteDatesForMonth(String uid, DateTime month) async {
+    final start = dateKey(DateTime(month.year, month.month, 1));
+    final end = dateKey(DateTime(month.year, month.month + 1, 1));
+    try {
+      final q = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('notes')
+          .where(FieldPath.documentId, isGreaterThanOrEqualTo: start)
+          .where(FieldPath.documentId, isLessThan: end)
+          .get();
+      return q.docs.map((d) => d.id).toSet();
+    } catch (_) {
+      return const {};
+    }
+  }
+
   /// Заметка участника тройки за день (для обмена и отметок).
   Future<Note?> fetchMemberNote(String uid, DateTime day) async {
     final key = dateKey(day);
